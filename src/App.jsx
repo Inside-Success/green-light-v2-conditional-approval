@@ -49,9 +49,7 @@ export default function App() {
   const [transcript, setTranscript] = useState(savedState.transcript || "");
   const [clientName, setClientName] = useState(savedState.clientName || "");
   const [showType, setShowType] = useState(savedState.showType || "normal");
-  const [deadlineText, setDeadlineText] = useState(
-    savedState.deadlineText || DEFAULT_DEADLINE,
-  );
+  const deadlineText = DEFAULT_DEADLINE;
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [result, setResult] = useState(savedState.result || null);
@@ -86,7 +84,6 @@ export default function App() {
       transcript,
       clientName,
       showType,
-      deadlineText,
       result,
       draftText,
       savedDoc,
@@ -99,7 +96,7 @@ export default function App() {
     } catch {
       // Session restore is a convenience only; generation must keep working.
     }
-  }, [clientName, deadlineText, draftText, result, savedDoc, showType, transcript]);
+  }, [clientName, draftText, result, savedDoc, showType, transcript]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -214,7 +211,6 @@ export default function App() {
     setTranscript("");
     setClientName("");
     setShowType("normal");
-    setDeadlineText(DEFAULT_DEADLINE);
     setResult(null);
     setDraftText("");
     setSavedDoc(null);
@@ -356,19 +352,6 @@ export default function App() {
               />
             </div>
 
-            {showType === "normal" && (
-              <div>
-                <label className="field-label" htmlFor="deadline">
-                  Deadline
-                </label>
-                <input
-                  id="deadline"
-                  value={deadlineText}
-                  onChange={(event) => setDeadlineText(event.target.value)}
-                  placeholder={DEFAULT_DEADLINE}
-                />
-              </div>
-            )}
           </div>
 
           <label className="field-label" htmlFor="transcript">

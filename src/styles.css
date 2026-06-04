@@ -144,7 +144,7 @@ h2 {
 .controls-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(200px, 1fr) minmax(180px, 0.85fr) minmax(160px, 0.65fr);
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr);
 }
 
 .field-label {
