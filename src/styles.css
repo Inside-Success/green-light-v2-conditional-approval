@@ -190,6 +190,10 @@ h2 {
   color: #111;
 }
 
+.segmented-control.compact button {
+  min-height: 34px;
+}
+
 input,
 textarea {
   background: #0f0f0f;
@@ -209,6 +213,12 @@ textarea::placeholder {
   color: rgba(243, 240, 232, 0.36);
 }
 
+input:disabled {
+  color: rgba(243, 240, 232, 0.36);
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
 textarea {
   font-family:
     "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
@@ -222,6 +232,76 @@ input:focus,
 textarea:focus {
   border-color: rgba(212, 175, 55, 0.66);
   box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.12);
+}
+
+.multi-client-box {
+  background: #101010;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  margin-top: 14px;
+  padding: 12px;
+}
+
+.toggle-row {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.toggle-title {
+  color: #fbfaf5;
+  font-size: 14px;
+  font-weight: 900;
+  margin-bottom: 1px;
+}
+
+.toggle-copy {
+  color: rgba(243, 240, 232, 0.54);
+  font-size: 13px;
+  margin-bottom: 0;
+}
+
+.switch-button {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  cursor: pointer;
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 3px;
+  width: 54px;
+}
+
+.switch-button span {
+  background: #fbfaf5;
+  border-radius: 50%;
+  display: block;
+  height: 22px;
+  transform: translateX(0);
+  transition: transform 160ms ease;
+  width: 22px;
+}
+
+.switch-button.on {
+  background: #d4af37;
+  border-color: #d4af37;
+}
+
+.switch-button.on span {
+  transform: translateX(24px);
+}
+
+.multi-client-fields {
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  margin-top: 12px;
+  padding-top: 2px;
+}
+
+.client-name-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .action-row {
@@ -317,6 +397,30 @@ textarea:focus {
   text-transform: capitalize;
 }
 
+.draft-tabs {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.draft-tabs button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: rgba(243, 240, 232, 0.74);
+  cursor: pointer;
+  font-weight: 900;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.draft-tabs button.selected {
+  background: #d4af37;
+  border-color: #d4af37;
+  color: #111;
+}
+
 .draft-editor {
   background: #fbfaf5;
   border-color: rgba(255, 255, 255, 0.12);
@@ -377,6 +481,11 @@ textarea:focus {
   }
 
   .controls-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .client-name-grid,
+  .draft-tabs {
     grid-template-columns: minmax(0, 1fr);
   }
 

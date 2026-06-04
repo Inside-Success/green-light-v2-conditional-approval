@@ -44,23 +44,61 @@ function StatusPill({ status }) {
   return <span className={`status-pill ${status || "idle"}`}>{label}</span>;
 }
 
+function createRestoredDraft(savedState) {
+  if (!savedState?.draftText) return [];
+  return [
+    {
+      id: "restored-draft",
+      label: savedState.result?.guest_name || savedState.clientName || "Draft",
+      payload: savedState.result || null,
+      draftText: savedState.draftText || "",
+      savedDoc: savedState.savedDoc || null,
+      saveError: "",
+      multiClient: false,
+      targetClientName: savedState.clientName || "",
+      targetClientPosition: 1,
+      letterCount: 1,
+      clientNames: savedState.clientName ? [savedState.clientName] : [],
+    },
+  ];
+}
+
 export default function App() {
   const [savedState] = useState(readSessionState);
   const [transcript, setTranscript] = useState(savedState.transcript || "");
   const [clientName, setClientName] = useState(savedState.clientName || "");
   const [showType, setShowType] = useState(savedState.showType || "normal");
+  const [multiClientEnabled, setMultiClientEnabled] = useState(
+    Boolean(savedState.multiClientEnabled),
+  );
+  const [multiClientLetterCount, setMultiClientLetterCount] = useState(
+    savedState.multiClientLetterCount || 2,
+  );
+  const [targetClientName, setTargetClientName] = useState(savedState.targetClientName || "");
+  const [clientOneName, setClientOneName] = useState(savedState.clientOneName || "");
+  const [clientTwoName, setClientTwoName] = useState(savedState.clientTwoName || "");
   const deadlineText = DEFAULT_DEADLINE;
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [result, setResult] = useState(savedState.result || null);
-  const [draftText, setDraftText] = useState(savedState.draftText || "");
-  const [savedDoc, setSavedDoc] = useState(savedState.savedDoc || null);
+  const [drafts, setDrafts] = useState(
+    Array.isArray(savedState.drafts) && savedState.drafts.length
+      ? savedState.drafts
+      : createRestoredDraft(savedState),
+  );
+  const [activeDraftIndex, setActiveDraftIndex] = useState(savedState.activeDraftIndex || 0);
   const [error, setError] = useState("");
-  const [saveError, setSaveError] = useState("");
 
   const clientValidation = useMemo(
-    () => validateClientPayload({ transcript, showType, deadlineText }),
-    [transcript, showType, deadlineText],
+    () =>
+      validateClientPayload({
+        transcript,
+        showType,
+        deadlineText,
+        multiClientEnabled,
+        multiClientLetterCount,
+        targetClientName,
+      }),
+    [deadlineText, multiClientEnabled, multiClientLetterCount, showType, targetClientName, transcript],
   );
 
   const showSignal = useMemo(
@@ -74,19 +112,28 @@ export default function App() {
       : "";
 
   useEffect(() => {
+    const activeDraft = drafts[activeDraftIndex] || null;
     const titleName =
-      savedDoc?.guest_name || result?.guest_name || clientName.trim() || "Ready";
+      activeDraft?.savedDoc?.guest_name ||
+      activeDraft?.payload?.guest_name ||
+      activeDraft?.targetClientName ||
+      clientName.trim() ||
+      "Ready";
     document.title = `V2 Green Light - ${titleName}`;
-  }, [clientName, result, savedDoc]);
+  }, [activeDraftIndex, clientName, drafts]);
 
   useEffect(() => {
     const nextState = {
       transcript,
       clientName,
       showType,
-      result,
-      draftText,
-      savedDoc,
+      multiClientEnabled,
+      multiClientLetterCount,
+      targetClientName,
+      clientOneName,
+      clientTwoName,
+      drafts,
+      activeDraftIndex,
     };
     try {
       window.sessionStorage.setItem(
@@ -96,15 +143,80 @@ export default function App() {
     } catch {
       // Session restore is a convenience only; generation must keep working.
     }
-  }, [clientName, draftText, result, savedDoc, showType, transcript]);
+  }, [
+    activeDraftIndex,
+    clientName,
+    clientOneName,
+    clientTwoName,
+    drafts,
+    multiClientEnabled,
+    multiClientLetterCount,
+    showType,
+    targetClientName,
+    transcript,
+  ]);
+
+  const activeDraft = drafts[activeDraftIndex] || null;
+  const draftText = activeDraft?.draftText || "";
+  const savedDoc = activeDraft?.savedDoc || null;
+  const saveError = activeDraft?.saveError || "";
+
+  const updateActiveDraft = (patch) => {
+    setDrafts((currentDrafts) =>
+      currentDrafts.map((draft, index) =>
+        index === activeDraftIndex ? { ...draft, ...patch } : draft,
+      ),
+    );
+  };
+
+  const buildGenerationRequests = () => {
+    if (!multiClientEnabled) {
+      const cleanClientName = clientName.trim();
+      return [
+        {
+          label: cleanClientName || "Draft",
+          clientName: cleanClientName,
+          targetClientName: cleanClientName,
+          targetClientPosition: 1,
+          multiClient: false,
+          letterCount: 1,
+          clientNames: cleanClientName ? [cleanClientName] : [],
+        },
+      ];
+    }
+
+    if (Number(multiClientLetterCount) === 1) {
+      const targetName = targetClientName.trim();
+      return [
+        {
+          label: targetName,
+          clientName: targetName,
+          targetClientName: targetName,
+          targetClientPosition: 1,
+          multiClient: true,
+          letterCount: 1,
+          clientNames: [targetName],
+        },
+      ];
+    }
+
+    const clientNames = [clientOneName.trim(), clientTwoName.trim()];
+    return [0, 1].map((index) => ({
+      label: clientNames[index] || `Client ${index + 1}`,
+      clientName: clientNames[index],
+      targetClientName: clientNames[index],
+      targetClientPosition: index + 1,
+      multiClient: true,
+      letterCount: 2,
+      clientNames: clientNames.filter(Boolean),
+    }));
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setResult(null);
-    setDraftText("");
-    setSavedDoc(null);
+    setDrafts([]);
+    setActiveDraftIndex(0);
     setError("");
-    setSaveError("");
 
     if (!clientValidation.ok) {
       setError(clientValidation.errors[0]);
@@ -112,42 +224,66 @@ export default function App() {
     }
 
     setIsGenerating(true);
-    const cleanClientName = clientName.trim();
     try {
-      const response = await fetch(V2_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: transcript,
-          transcript,
-          client_name: cleanClientName,
-          show_type: showType,
-          deadline_text: showType === "normal" ? deadlineText.trim() : "",
-          requested_output: "v2_conditional_casting_approval",
-          timestamp: new Date().toISOString(),
-        }),
-      });
+      const generationRequests = buildGenerationRequests();
+      const generatedDrafts = [];
 
-      const text = await response.text();
-      let payload;
-      try {
-        payload = JSON.parse(text);
-      } catch {
-        payload = { message: text };
+      for (const [index, generationRequest] of generationRequests.entries()) {
+        const response = await fetch(V2_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: transcript,
+            transcript,
+            client_name: generationRequest.clientName,
+            show_type: showType,
+            deadline_text: showType === "normal" ? deadlineText.trim() : "",
+            requested_output: "v2_conditional_casting_approval",
+            multi_client: generationRequest.multiClient,
+            multi_client_letter_count: generationRequest.letterCount,
+            target_client_name: generationRequest.targetClientName,
+            target_client_position: generationRequest.targetClientPosition,
+            client_names: generationRequest.clientNames,
+            timestamp: new Date().toISOString(),
+          }),
+        });
+
+        const text = await response.text();
+        let payload;
+        try {
+          payload = JSON.parse(text);
+        } catch {
+          payload = { message: text };
+        }
+
+        if (!response.ok || payload?.ok === false) {
+          const message =
+            payload?.error ||
+            payload?.message ||
+            `V2 workflow failed with status ${response.status}`;
+          throw new Error(message);
+        }
+
+        const generatedDraft =
+          payload?.draft_text || payload?.preview || payload?.letter_text || "";
+
+        generatedDrafts.push({
+          id: `${Date.now()}-${index}`,
+          label: payload?.guest_name || generationRequest.label,
+          payload,
+          draftText: generatedDraft,
+          savedDoc: null,
+          saveError: "",
+          multiClient: generationRequest.multiClient,
+          targetClientName: generationRequest.targetClientName,
+          targetClientPosition: generationRequest.targetClientPosition,
+          letterCount: generationRequest.letterCount,
+          clientNames: generationRequest.clientNames,
+        });
       }
 
-      if (!response.ok || payload?.ok === false) {
-        const message =
-          payload?.error ||
-          payload?.message ||
-          `V2 workflow failed with status ${response.status}`;
-        throw new Error(message);
-      }
-
-      const generatedDraft =
-        payload?.draft_text || payload?.preview || payload?.letter_text || "";
-      setResult(payload);
-      setDraftText(generatedDraft);
+      setDrafts(generatedDrafts);
+      setActiveDraftIndex(0);
     } catch (caughtError) {
       setError(caughtError.message || "V2 generation failed.");
     } finally {
@@ -156,12 +292,18 @@ export default function App() {
   };
 
   const handleSaveToDrive = async () => {
-    setSaveError("");
-    setSavedDoc(null);
+    if (!activeDraft) {
+      setError("Generate a V2 letter before sending to Google Drive.");
+      return;
+    }
+
+    updateActiveDraft({ saveError: "", savedDoc: null });
 
     const cleanDraft = draftText.trim();
     if (!cleanDraft) {
-      setSaveError("Generate or paste an edited V2 letter before sending to Google Drive.");
+      updateActiveDraft({
+        saveError: "Generate or paste an edited V2 letter before sending to Google Drive.",
+      });
       return;
     }
 
@@ -173,11 +315,15 @@ export default function App() {
         body: JSON.stringify({
           letter_text: cleanDraft,
           draft_text: cleanDraft,
-          show_type: result?.show_type || showType,
-          guest_name: result?.guest_name || "",
-          client_name: clientName.trim(),
-          doc_title: result?.doc_title || "",
-          warnings: result?.warnings || [],
+          show_type: activeDraft.payload?.show_type || showType,
+          guest_name: activeDraft.payload?.guest_name || "",
+          client_name: activeDraft.targetClientName || clientName.trim(),
+          doc_title: activeDraft.payload?.doc_title || "",
+          warnings: activeDraft.payload?.warnings || [],
+          multi_client: Boolean(activeDraft.multiClient),
+          multi_client_letter_count: activeDraft.letterCount || 1,
+          target_client_name: activeDraft.targetClientName || "",
+          target_client_position: activeDraft.targetClientPosition || 1,
           requested_output: "v2_conditional_casting_approval_save",
           timestamp: new Date().toISOString(),
         }),
@@ -199,9 +345,9 @@ export default function App() {
         throw new Error(message);
       }
 
-      setSavedDoc(payload);
+      updateActiveDraft({ savedDoc: payload, saveError: "" });
     } catch (caughtError) {
-      setSaveError(caughtError.message || "V2 Google Drive save failed.");
+      updateActiveDraft({ saveError: caughtError.message || "V2 Google Drive save failed." });
     } finally {
       setIsSaving(false);
     }
@@ -211,21 +357,24 @@ export default function App() {
     setTranscript("");
     setClientName("");
     setShowType("normal");
-    setResult(null);
-    setDraftText("");
-    setSavedDoc(null);
+    setMultiClientEnabled(false);
+    setMultiClientLetterCount(2);
+    setTargetClientName("");
+    setClientOneName("");
+    setClientTwoName("");
+    setDrafts([]);
+    setActiveDraftIndex(0);
     setError("");
-    setSaveError("");
   };
 
   const warnings = [
     ...(clientValidation.warnings || []),
     ...(variantWarning ? [variantWarning] : []),
-    ...((result?.warnings || []).filter(Boolean)),
+    ...((activeDraft?.payload?.warnings || []).filter(Boolean)),
   ];
   const hasDraft = draftText.trim().length > 0;
-  const activeDoc = savedDoc || result;
-  const showOutputPanel = hasDraft || Boolean(savedDoc) || Boolean(saveError);
+  const activeDoc = savedDoc || activeDraft?.payload;
+  const showOutputPanel = drafts.length > 0 || Boolean(saveError);
 
   return (
     <main className="app-shell">
@@ -242,7 +391,7 @@ export default function App() {
                 ? "saving"
               : error || saveError
                 ? "error"
-                : savedDoc || result
+                : savedDoc || activeDraft?.payload
                   ? "success"
                   : "idle"
           }
@@ -281,6 +430,21 @@ export default function App() {
             </div>
           )}
 
+          {drafts.length > 1 && (
+            <div className="draft-tabs" aria-label="Generated drafts">
+              {drafts.map((draft, index) => (
+                <button
+                  key={draft.id}
+                  type="button"
+                  className={activeDraftIndex === index ? "selected" : ""}
+                  onClick={() => setActiveDraftIndex(index)}
+                >
+                  {draft.label || `Client ${index + 1}`}
+                </button>
+              ))}
+            </div>
+          )}
+
           <label className="field-label" htmlFor="draft-editor">
             Draft
           </label>
@@ -289,9 +453,11 @@ export default function App() {
             className="draft-editor"
             value={draftText}
             onChange={(event) => {
-              setDraftText(event.target.value);
-              setSavedDoc(null);
-              setSaveError("");
+              updateActiveDraft({
+                draftText: event.target.value,
+                savedDoc: null,
+                saveError: "",
+              });
             }}
             placeholder="Generated V2 letter draft will appear here. You can edit it before sending it to Google Drive."
             spellCheck="true"
@@ -349,9 +515,96 @@ export default function App() {
                 value={clientName}
                 onChange={(event) => setClientName(event.target.value)}
                 placeholder="AI detects it if blank"
+                disabled={multiClientEnabled}
               />
             </div>
 
+          </div>
+
+          <div className="multi-client-box">
+            <div className="toggle-row">
+              <div>
+                <p className="toggle-title">Multi-client transcript</p>
+                <p className="toggle-copy">Use only when one transcript contains more than one client.</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={multiClientEnabled}
+                className={`switch-button ${multiClientEnabled ? "on" : ""}`}
+                onClick={() => {
+                  setMultiClientEnabled((enabled) => !enabled);
+                  setDrafts([]);
+                  setActiveDraftIndex(0);
+                  setError("");
+                }}
+              >
+                <span />
+              </button>
+            </div>
+
+            {multiClientEnabled && (
+              <div className="multi-client-fields">
+                <label className="field-label" htmlFor="letter-count">
+                  How many letters?
+                </label>
+                <div className="segmented-control compact" id="letter-count">
+                  <button
+                    type="button"
+                    className={Number(multiClientLetterCount) === 1 ? "selected" : ""}
+                    onClick={() => setMultiClientLetterCount(1)}
+                  >
+                    1 Letter
+                  </button>
+                  <button
+                    type="button"
+                    className={Number(multiClientLetterCount) === 2 ? "selected" : ""}
+                    onClick={() => setMultiClientLetterCount(2)}
+                  >
+                    2 Letters
+                  </button>
+                </div>
+
+                {Number(multiClientLetterCount) === 1 ? (
+                  <div>
+                    <label className="field-label" htmlFor="target-client-name">
+                      Target client name
+                    </label>
+                    <input
+                      id="target-client-name"
+                      value={targetClientName}
+                      onChange={(event) => setTargetClientName(event.target.value)}
+                      placeholder="Required when generating one letter"
+                    />
+                  </div>
+                ) : (
+                  <div className="client-name-grid">
+                    <div>
+                      <label className="field-label" htmlFor="client-one-name">
+                        Client 1 name <span className="optional-label">optional</span>
+                      </label>
+                      <input
+                        id="client-one-name"
+                        value={clientOneName}
+                        onChange={(event) => setClientOneName(event.target.value)}
+                        placeholder="Optional but recommended"
+                      />
+                    </div>
+                    <div>
+                      <label className="field-label" htmlFor="client-two-name">
+                        Client 2 name <span className="optional-label">optional</span>
+                      </label>
+                      <input
+                        id="client-two-name"
+                        value={clientTwoName}
+                        onChange={(event) => setClientTwoName(event.target.value)}
+                        placeholder="Optional but recommended"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <label className="field-label" htmlFor="transcript">

@@ -1,6 +1,13 @@
 const MIN_TRANSCRIPT_LENGTH = 120;
 
-export function validateClientPayload({ transcript, showType, deadlineText }) {
+export function validateClientPayload({
+  transcript,
+  showType,
+  deadlineText,
+  multiClientEnabled,
+  multiClientLetterCount,
+  targetClientName,
+}) {
   const errors = [];
   const warnings = [];
   const cleanTranscript = String(transcript || "").trim();
@@ -17,6 +24,18 @@ export function validateClientPayload({ transcript, showType, deadlineText }) {
 
   if (showType === "normal" && !String(deadlineText || "").trim()) {
     errors.push("Normal shows require deadline text.");
+  }
+
+  if (multiClientEnabled && ![1, 2].includes(Number(multiClientLetterCount))) {
+    errors.push("Choose either 1 or 2 letters for the multi-client transcript.");
+  }
+
+  if (
+    multiClientEnabled &&
+    Number(multiClientLetterCount) === 1 &&
+    !String(targetClientName || "").trim()
+  ) {
+    errors.push("Enter the target client name when generating one letter from a multi-client transcript.");
   }
 
   return {
