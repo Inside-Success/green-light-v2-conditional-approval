@@ -254,10 +254,70 @@ export default function App() {
       </section>
 
       <form className="generator-grid" onSubmit={handleSubmit}>
-        <section className="panel input-panel">
+        {showOutputPanel && <section className="panel output-panel">
+          <div className="output-header">
+            <div>
+              <h2>Review Letter</h2>
+            </div>
+
+            <div className="output-actions">
+              <button
+                className="primary-action"
+                type="button"
+                disabled={isGenerating || isSaving || !hasDraft}
+                onClick={handleSaveToDrive}
+              >
+                {isSaving ? "Sending..." : "Send to Google Drive"}
+              </button>
+
+              {savedDoc?.document_url && (
+                <a className="doc-link" href={savedDoc.document_url} target="_blank" rel="noreferrer">
+                  Open Doc
+                </a>
+              )}
+            </div>
+          </div>
+
+          {(activeDoc?.doc_title || activeDoc?.validation_status) && (
+            <div className="metadata-strip">
+              {activeDoc?.doc_title && <span>{activeDoc.doc_title}</span>}
+              {activeDoc?.validation_status && <strong>{activeDoc.validation_status}</strong>}
+            </div>
+          )}
+
+          <label className="field-label" htmlFor="draft-editor">
+            Draft
+          </label>
+          <textarea
+            id="draft-editor"
+            className="draft-editor"
+            value={draftText}
+            onChange={(event) => {
+              setDraftText(event.target.value);
+              setSavedDoc(null);
+              setSaveError("");
+            }}
+            placeholder="Generated V2 letter draft will appear here. You can edit it before sending it to Google Drive."
+            spellCheck="true"
+          />
+
+          {saveError && (
+            <div className="notice error">
+              <p>{saveError}</p>
+            </div>
+          )}
+
+          {savedDoc?.document_url && (
+            <div className="notice success">
+              <p>V2 Google Doc created successfully.</p>
+            </div>
+          )}
+        </section>}
+
+        <section className={`panel input-panel ${showOutputPanel ? "input-panel-compact" : ""}`}>
           <div className="section-header">
             <div>
-              <h2>Generate Letter</h2>
+              <h2>{showOutputPanel ? "Regenerate" : "Generate Letter"}</h2>
             </div>
           </div>
 
@@ -344,66 +404,6 @@ export default function App() {
             </div>
           )}
         </section>
-
-        {showOutputPanel && <section className="panel output-panel">
-          <div className="output-header">
-            <div>
-              <h2>Review Letter</h2>
-            </div>
-
-            <div className="output-actions">
-              <button
-                className="primary-action"
-                type="button"
-                disabled={isGenerating || isSaving || !hasDraft}
-                onClick={handleSaveToDrive}
-              >
-                {isSaving ? "Sending..." : "Send to Google Drive"}
-              </button>
-
-              {savedDoc?.document_url && (
-                <a className="doc-link" href={savedDoc.document_url} target="_blank" rel="noreferrer">
-                  Open Doc
-                </a>
-              )}
-            </div>
-          </div>
-
-          {(activeDoc?.doc_title || activeDoc?.validation_status) && (
-            <div className="metadata-strip">
-              {activeDoc?.doc_title && <span>{activeDoc.doc_title}</span>}
-              {activeDoc?.validation_status && <strong>{activeDoc.validation_status}</strong>}
-            </div>
-          )}
-
-          <label className="field-label" htmlFor="draft-editor">
-            Draft
-          </label>
-          <textarea
-            id="draft-editor"
-            className="draft-editor"
-            value={draftText}
-            onChange={(event) => {
-              setDraftText(event.target.value);
-              setSavedDoc(null);
-              setSaveError("");
-            }}
-            placeholder="Generated V2 letter draft will appear here. You can edit it before sending it to Google Drive."
-            spellCheck="true"
-          />
-
-          {saveError && (
-            <div className="notice error">
-              <p>{saveError}</p>
-            </div>
-          )}
-
-          {savedDoc?.document_url && (
-            <div className="notice success">
-              <p>V2 Google Doc created successfully.</p>
-            </div>
-          )}
-        </section>}
       </form>
     </main>
   );

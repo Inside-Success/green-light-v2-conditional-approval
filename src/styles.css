@@ -124,6 +124,14 @@ h2 {
   padding: 16px;
 }
 
+.input-panel-compact {
+  opacity: 0.92;
+}
+
+.input-panel-compact textarea {
+  min-height: 190px;
+}
+
 .section-header,
 .output-header {
   align-items: center;
@@ -313,7 +321,7 @@ textarea:focus {
   background: #fbfaf5;
   border-color: rgba(255, 255, 255, 0.12);
   color: #1d1d1d;
-  min-height: 62vh;
+  min-height: 66vh;
   white-space: pre-wrap;
 }
 
