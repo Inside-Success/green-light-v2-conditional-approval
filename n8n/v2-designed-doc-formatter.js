@@ -713,6 +713,20 @@ requests.push({
   },
 });
 
+requests.push({
+  createHeader: {
+    type: "DEFAULT",
+    sectionBreakLocation: { index: customerJourneySectionStart },
+  },
+});
+
+requests.push({
+  createFooter: {
+    type: "DEFAULT",
+    sectionBreakLocation: { index: customerJourneySectionStart },
+  },
+});
+
 requests.push(...approvalParagraphRestyles);
 requests.push(...nextStepParagraphRestyles);
 
@@ -733,7 +747,7 @@ requests.push({
       marginRight: { magnitude: 0, unit: "PT" },
       marginHeader: { magnitude: 0, unit: "PT" },
       marginFooter: { magnitude: 0, unit: "PT" },
-      useFirstPageHeaderFooter: true,
+      useFirstPageHeaderFooter: false,
     },
     fields: "marginTop,marginBottom,marginLeft,marginRight,marginHeader,marginFooter,useFirstPageHeaderFooter",
   },
