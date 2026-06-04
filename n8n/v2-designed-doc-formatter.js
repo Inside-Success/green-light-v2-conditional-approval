@@ -160,10 +160,6 @@ finalBodyContent = finalBodyContent
   .replace(/\n{3,}/g, "\n\n")
   .trim();
 
-if (isNextLevelCeo) {
-  finalBodyContent += "\n ";
-}
-
 const titleLine1 = "INSIDE SUCCESS TV";
 const titleLine2 = "CONDITIONAL CASTING APPROVAL";
 const castLine = `Cast Name: ${guestName}`;
@@ -705,6 +701,10 @@ if (contentEndIndex > contentStartIndex) {
 const customerJourneyStartIndex = contentEndIndex;
 const customerJourneySectionStart = customerJourneyStartIndex + 1;
 const customerJourneySectionEnd = customerJourneyStartIndex + 2;
+const customerJourneyParagraphStart = customerJourneySectionStart + 1;
+const customerJourneyParagraphEnd = customerJourneyParagraphStart + 2;
+const customerJourneyImageHeight = 744;
+const customerJourneyImageWidth = isNextLevelCeo ? 505 : 500;
 
 requests.push({
   insertSectionBreak: {
@@ -755,18 +755,18 @@ requests.push({
 
 requests.push({
   insertInlineImage: {
-    endOfSegmentLocation: {},
+    location: { index: customerJourneyParagraphStart },
     uri: customerJourneyUrl,
     objectSize: {
-      width: { magnitude: isNextLevelCeo ? 537 : 531, unit: "PT" },
-      height: { magnitude: 790, unit: "PT" },
+      width: { magnitude: customerJourneyImageWidth, unit: "PT" },
+      height: { magnitude: customerJourneyImageHeight, unit: "PT" },
     },
   },
 });
 
 requests.push({
   updateParagraphStyle: {
-    range: { startIndex: customerJourneySectionStart, endIndex: customerJourneyStartIndex + 3 },
+    range: { startIndex: customerJourneyParagraphStart, endIndex: customerJourneyParagraphEnd },
     paragraphStyle: {
       alignment: "CENTER",
       indentStart: { magnitude: 0, unit: "PT" },
