@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { validateClientPayload } from "./validation.js";
 
 const V2_WEBHOOK_URL =
@@ -10,6 +10,16 @@ const V2_SAVE_WEBHOOK_URL =
   "https://insidesuccess.app.n8n.cloud/webhook/green-light-v2-conditional-approval-save";
 
 const DEFAULT_DEADLINE = "Sunday 11.59pm EST";
+const SESSION_STORAGE_KEY = "green-light-v2-dashboard-session-v1";
+
+function readSessionState() {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.sessionStorage.getItem(SESSION_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
 
 function getTranscriptShowSignal(transcript) {
   const value = transcript.toLowerCase();
@@ -35,15 +45,18 @@ function StatusPill({ status }) {
 }
 
 export default function App() {
-  const [transcript, setTranscript] = useState("");
-  const [clientName, setClientName] = useState("");
-  const [showType, setShowType] = useState("normal");
-  const [deadlineText, setDeadlineText] = useState(DEFAULT_DEADLINE);
+  const [savedState] = useState(readSessionState);
+  const [transcript, setTranscript] = useState(savedState.transcript || "");
+  const [clientName, setClientName] = useState(savedState.clientName || "");
+  const [showType, setShowType] = useState(savedState.showType || "normal");
+  const [deadlineText, setDeadlineText] = useState(
+    savedState.deadlineText || DEFAULT_DEADLINE,
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [result, setResult] = useState(null);
-  const [draftText, setDraftText] = useState("");
-  const [savedDoc, setSavedDoc] = useState(null);
+  const [result, setResult] = useState(savedState.result || null);
+  const [draftText, setDraftText] = useState(savedState.draftText || "");
+  const [savedDoc, setSavedDoc] = useState(savedState.savedDoc || null);
   const [error, setError] = useState("");
   const [saveError, setSaveError] = useState("");
 
@@ -61,6 +74,32 @@ export default function App() {
     transcript.trim() && showSignal !== showType
       ? `Transcript appears to mention ${showSignal === "nlceo" ? "Next Level CEO" : "a normal show"}, but the selected variant is ${showType === "nlceo" ? "Next Level CEO" : "Normal"}.`
       : "";
+
+  useEffect(() => {
+    const titleName =
+      savedDoc?.guest_name || result?.guest_name || clientName.trim() || "Ready";
+    document.title = `V2 Green Light - ${titleName}`;
+  }, [clientName, result, savedDoc]);
+
+  useEffect(() => {
+    const nextState = {
+      transcript,
+      clientName,
+      showType,
+      deadlineText,
+      result,
+      draftText,
+      savedDoc,
+    };
+    try {
+      window.sessionStorage.setItem(
+        SESSION_STORAGE_KEY,
+        JSON.stringify(nextState),
+      );
+    } catch {
+      // Session restore is a convenience only; generation must keep working.
+    }
+  }, [clientName, deadlineText, draftText, result, savedDoc, showType, transcript]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -171,6 +210,18 @@ export default function App() {
     }
   };
 
+  const handleStartNew = () => {
+    setTranscript("");
+    setClientName("");
+    setShowType("normal");
+    setDeadlineText(DEFAULT_DEADLINE);
+    setResult(null);
+    setDraftText("");
+    setSavedDoc(null);
+    setError("");
+    setSaveError("");
+  };
+
   const warnings = [
     ...(clientValidation.warnings || []),
     ...(variantWarning ? [variantWarning] : []),
@@ -178,15 +229,16 @@ export default function App() {
   ];
   const hasDraft = draftText.trim().length > 0;
   const activeDoc = savedDoc || result;
+  const showOutputPanel = hasDraft || Boolean(savedDoc) || Boolean(saveError);
 
   return (
     <main className="app-shell">
       <section className="top-bar" aria-label="Green Light V2 status">
         <div>
           <p className="eyebrow">Inside Success TV</p>
-          <h1>Green Light V2 Conditional Approval</h1>
+          <h1>Green Light Letter Generator</h1>
           <p className="subcopy">
-            Content-first V2 generator using Rudy's Conditional Casting Approval template.
+            V2 conditional approval letter. Paste, generate, edit, and send to Drive.
           </p>
         </div>
         <StatusPill
@@ -206,31 +258,55 @@ export default function App() {
 
       <form className="generator-grid" onSubmit={handleSubmit}>
         <section className="panel input-panel">
-          <div className="section-header">
+          <div className="mode-card" aria-label="Selected document type">
+            <div className="mode-icon" aria-hidden="true">GL</div>
             <div>
-              <h2>Transcript</h2>
-              <p>Paste the casting call transcript and choose the deterministic show variant.</p>
+              <h2>Greenlight Letter</h2>
+              <p>Creates the editable V2 approval draft from the fixed Rudy template.</p>
             </div>
           </div>
 
-          <label className="field-label" htmlFor="show-type">
-            Show variant
-          </label>
-          <div className="segmented-control" id="show-type">
-            <button
-              type="button"
-              className={showType === "normal" ? "selected" : ""}
-              onClick={() => setShowType("normal")}
-            >
-              Normal
-            </button>
-            <button
-              type="button"
-              className={showType === "nlceo" ? "selected" : ""}
-              onClick={() => setShowType("nlceo")}
-            >
-              Next Level CEO
-            </button>
+          <div className="section-header">
+            <div>
+              <h2>Generate Draft</h2>
+              <p>Use one browser tab per client. Your tab state is kept if you refresh.</p>
+            </div>
+          </div>
+
+          <div className="controls-grid">
+            <div>
+              <label className="field-label" htmlFor="show-type">
+                Show variant
+              </label>
+              <div className="segmented-control" id="show-type">
+                <button
+                  type="button"
+                  className={showType === "normal" ? "selected" : ""}
+                  onClick={() => setShowType("normal")}
+                >
+                  Normal
+                </button>
+                <button
+                  type="button"
+                  className={showType === "nlceo" ? "selected" : ""}
+                  onClick={() => setShowType("nlceo")}
+                >
+                  Next Level CEO
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="field-label" htmlFor="client-name">
+                Client name <span className="optional-label">optional</span>
+              </label>
+              <input
+                id="client-name"
+                value={clientName}
+                onChange={(event) => setClientName(event.target.value)}
+                placeholder="AI detects it if blank"
+              />
+            </div>
           </div>
 
           {showType === "normal" && (
@@ -247,16 +323,6 @@ export default function App() {
             </>
           )}
 
-          <label className="field-label" htmlFor="client-name">
-            Client name <span className="optional-label">optional</span>
-          </label>
-          <input
-            id="client-name"
-            value={clientName}
-            onChange={(event) => setClientName(event.target.value)}
-            placeholder="Leave blank to let AI detect it from the transcript"
-          />
-
           <label className="field-label" htmlFor="transcript">
             Casting transcript
           </label>
@@ -268,13 +334,18 @@ export default function App() {
             spellCheck="false"
           />
 
-          <button
-            className="primary-action"
-            type="submit"
-            disabled={isGenerating || !clientValidation.ok}
-          >
-            {isGenerating ? "Generating V2 Letter..." : "Generate V2 Letter"}
-          </button>
+          <div className="action-row">
+            <button
+              className="primary-action"
+              type="submit"
+              disabled={isGenerating || !clientValidation.ok}
+            >
+              {isGenerating ? "Generating V2 Letter..." : "Generate V2 Letter"}
+            </button>
+            <button className="secondary-action" type="button" onClick={handleStartNew}>
+              Start New
+            </button>
+          </div>
 
           {(error || warnings.length > 0) && (
             <div className={error ? "notice error" : "notice warning"}>
@@ -286,19 +357,30 @@ export default function App() {
           )}
         </section>
 
-        <section className="panel output-panel">
+        {showOutputPanel && <section className="panel output-panel">
           <div className="section-header">
             <div>
-              <h2>V2 Output</h2>
-              <p>Edit the draft here, then send the final version to Google Drive.</p>
+              <h2>Editable V2 Letter</h2>
+              <p>Review the draft, make edits, then send the approved version to Drive.</p>
             </div>
           </div>
 
-          {savedDoc?.document_url && (
-            <a className="doc-link" href={savedDoc.document_url} target="_blank" rel="noreferrer">
-              Open V2 Google Doc
-            </a>
-          )}
+          <div className="output-actions">
+            <button
+              className="primary-action"
+              type="button"
+              disabled={isGenerating || isSaving || !hasDraft}
+              onClick={handleSaveToDrive}
+            >
+              {isSaving ? "Sending to Google Drive..." : "Send Edited Doc to Google Drive"}
+            </button>
+
+            {savedDoc?.document_url && (
+              <a className="doc-link" href={savedDoc.document_url} target="_blank" rel="noreferrer">
+                Open V2 Google Doc
+              </a>
+            )}
+          </div>
 
           {activeDoc?.doc_title && (
             <div className="metadata-row">
@@ -330,15 +412,6 @@ export default function App() {
             spellCheck="true"
           />
 
-          <button
-            className="primary-action"
-            type="button"
-            disabled={isGenerating || isSaving || !hasDraft}
-            onClick={handleSaveToDrive}
-          >
-            {isSaving ? "Sending to Google Drive..." : "Send Edited Doc to Google Drive"}
-          </button>
-
           {saveError && (
             <div className="notice error">
               <p>{saveError}</p>
@@ -350,7 +423,7 @@ export default function App() {
               <p>V2 Google Doc created successfully.</p>
             </div>
           )}
-        </section>
+        </section>}
       </form>
     </main>
   );
