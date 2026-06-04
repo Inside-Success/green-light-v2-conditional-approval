@@ -56,7 +56,6 @@ const COLOR_BLACK = { color: { rgbColor: { red: 0, green: 0, blue: 0 } } };
 const COLOR_WHITE = { color: { rgbColor: { red: 1, green: 1, blue: 1 } } };
 const COLOR_GREY = { color: { rgbColor: { red: 0.6, green: 0.6, blue: 0.6 } } };
 const COLOR_YELLOW = { color: { rgbColor: { red: 1, green: 0.85, blue: 0 } } };
-const COLOR_CAST_HIGHLIGHT = { color: { rgbColor: { red: 1, green: 0.93, blue: 0.62 } } };
 
 function normalizeText(value) {
   return String(value || "")
@@ -85,7 +84,7 @@ function stripV2TitleAndFooter(value) {
   return body;
 }
 
-function replaceNextStep(text) {
+function ensureNextStepResources(text) {
   const nextStepResourceLines = [
     " ",
     "Before your second call, please review these two resources:",
@@ -95,32 +94,13 @@ function replaceNextStep(text) {
     `2. Review the media kit: ${MEDIA_PACK_LINK_TEXT}`,
   ].join("\n");
 
-  if (isNextLevelCeo) {
-    const nextLevelNextStepText = [
-      "NEXT STEP",
-      "Please ensure you do not miss and attend your second call with your casting manager or the senior casting lead to meet this week's cohort. No shows and cancellations will result in you being blacklisted from our network and all",
-      "shows.",
-      nextStepResourceLines,
-    ].join("\n");
-
-    if (/^NEXT STEP\s*$/im.test(text)) {
-      return text
-        .replace(/^NEXT STEP\s*[\s\S]*?(?=\n\s*(IMPORTANT|CONDITIONAL APPROVAL EXPIRES|Inside Success TV|Results vary\.|$))/im, nextLevelNextStepText)
-        .replace(/\n*\s*^IMPORTANT\s*$[\s\S]*?(?=\n\s*(Inside Success TV|Results vary\.|$))/im, "")
-        .replace(/\n*\s*^CONDITIONAL APPROVAL EXPIRES[^\n]*$[\s\S]*?(?=\n\s*(Inside Success TV|Results vary\.|$))/im, "")
-        .trim();
-    }
-
-    return [text, nextLevelNextStepText].filter(Boolean).join("\n\n");
-  }
-
   if (text.includes(RUDY_EPISODE_LINK_TEXT) || text.includes(MEDIA_PACK_LINK_TEXT)) {
     return text;
   }
 
-  if (/NEXT STEP/i.test(text)) {
+  if (/^NEXT STEP\s*$/im.test(text)) {
     return text.replace(
-      /(NEXT STEP[\s\S]*?)(?=\n\s*(IMPORTANT|CONDITIONAL APPROVAL EXPIRES|Inside Success TV|Results vary\.|$))/i,
+      /(^NEXT STEP\s*\n[\s\S]*?)(?=\n\s*(IMPORTANT|CONDITIONAL APPROVAL EXPIRES|Inside Success TV|Results vary\.|$))/im,
       (match) => match.trimEnd() + "\n" + nextStepResourceLines,
     );
   }
@@ -128,51 +108,57 @@ function replaceNextStep(text) {
   return [text, "NEXT STEP", nextStepResourceLines].filter(Boolean).join("\n\n");
 }
 
-function replaceNormalApprovalBlock(text) {
+function normalizeApprovalBody(value) {
+  const body = normalizeText(value)
+    .replace(/^Conditional approval expires on:\s*$/gim, "")
+    .replace(/^Sunday 11\.59pm EST\s*$/gim, "")
+    .trim();
+  return body || "After this deadline your application may need to be re-reviewed by casting before being reconsidered for a future season.";
+}
+
+function normalizeApprovalSections(text) {
   if (isNextLevelCeo) {
     return text
-      .replace(/\n*\s*^IMPORTANT\s*$[\s\S]*?(?=\n\s*(Inside Success TV|Results vary\.|$))/im, "")
+      .replace(
+        /\n*\s*^IMPORTANT\s*$\s*\n\s*Conditional approval expires(?:\s+on)?:\s*\n[^\n]*\n[\s\S]*?(?=\n\s*(Inside Success TV|Results vary\.|$))/im,
+        "",
+      )
       .replace(/\n*\s*^CONDITIONAL APPROVAL EXPIRES[^\n]*$[\s\S]*?(?=\n\s*(Inside Success TV|Results vary\.|$))/im, "")
       .trim();
   }
 
-  const approvalBlock = [
-    "CONDITIONAL APPROVAL EXPIRES SUNDAY 11.59PM",
-    "Please note to keep inline with our show scheduling this casting approval is only valid until this weekend, ending Sunday 11.59pm EST. Please note after this time frame your show may not be available and you'll have to go back for approval with the director of casting and reapply later this year or next year.",
-  ].join("\n");
+  const approvalHeading = "CONDITIONAL APPROVAL EXPIRES SUNDAY 11.59PM";
+  const fallbackApprovalBody =
+    "After this deadline your application may need to be re-reviewed by casting before being reconsidered for a future season.";
 
-  if (/^\s*IMPORTANT\s*$/im.test(text)) {
+  if (/^\s*IMPORTANT\s*$/im.test(text) && /Conditional approval expires/i.test(text)) {
     return text.replace(
-      /\n*\s*IMPORTANT\s*\nConditional approval expires on:\s*\n[^\n]*\nAfter this deadline[\s\S]*?(?=\n\s*(Inside Success TV|Results vary\.|$))/i,
-      "\n" + approvalBlock + "\n",
+      /\n*\s*^IMPORTANT\s*$\s*\n\s*Conditional approval expires(?:\s+on)?:\s*\n[^\n]*\n([\s\S]*?)(?=\n\s*(Inside Success TV|Results vary\.|$))/im,
+      (_match, approvalBody) => "\n" + approvalHeading + "\n" + normalizeApprovalBody(approvalBody) + "\n",
     );
   }
 
-  if (/CONDITIONAL APPROVAL EXPIRES/i.test(text)) {
+  if (/^CONDITIONAL APPROVAL EXPIRES/im.test(text)) {
     return text.replace(
-      /CONDITIONAL APPROVAL EXPIRES[^\n]*[\s\S]*?(?=\n\s*(Inside Success TV|Results vary\.|$))/i,
-      approvalBlock + "\n",
+      /^CONDITIONAL APPROVAL EXPIRES[^\n]*/im,
+      approvalHeading,
     );
   }
 
-  return [text, approvalBlock].filter(Boolean).join("\n\n");
+  return [text, approvalHeading, fallbackApprovalBody].filter(Boolean).join("\n\n");
 }
 
 let finalBodyContent = stripV2TitleAndFooter(built.letter_text || built.preview || "");
 if (finalBodyContent.length < 500) throw new Error("Edited V2 letter body is too short.");
 
-finalBodyContent = replaceNextStep(finalBodyContent);
-finalBodyContent = replaceNormalApprovalBlock(finalBodyContent);
+finalBodyContent = ensureNextStepResources(finalBodyContent);
+finalBodyContent = normalizeApprovalSections(finalBodyContent);
 finalBodyContent = finalBodyContent
   .replace(/\bthis\s+weeks\s+cohort\b/gi, "this week's cohort")
   .replace(/^(NEXT STEP)\s*\n+/gim, "$1\n")
   .replace(/^(CONDITIONAL APPROVAL EXPIRES[^\n]*)\s*\n+/gim, "$1\n")
   .replace(/\n{3,}/g, "\n\n")
   .trim();
-
-if (/CONDITIONAL APPROVAL EXPIRES[\s\S]*reapply later this year or next year\.$/i.test(finalBodyContent)) {
-  finalBodyContent += "\n";
-}
 
 if (isNextLevelCeo) {
   finalBodyContent += "\n ";
@@ -411,7 +397,6 @@ addParagraphStyle(
 );
 
 applyFont(t2Start, t2Start + t2Len, false, 14, FONT_BODY, 400);
-addTextStyle(t2Start, t2Start + t2Len, { backgroundColor: COLOR_CAST_HIGHLIGHT }, "backgroundColor");
 const castPrefixLength = "Cast Name:".length;
 applyFont(t2Start, t2Start + castPrefixLength, true, 14, FONT_BODY, 700);
 addParagraphStyle(
@@ -668,8 +653,21 @@ for (let i = 0; i < bodyLinesArr.length; i += 1) {
     applyFont(idx, idx + len, true, FONT_ACT_HEAD, FONT_BODY, 700);
     stylePara(idx, paraEnd, 16, 4, true);
   } else if (/^Results vary\./i.test(trimmed)) {
-    applyFont(idx, idx + len, false, FONT_SMALL, FONT_BODY, 400);
-    stylePara(idx, paraEnd, 4, 12, false);
+    applyFont(idx, idx + len, false, 9, FONT_BODY, 400, { foregroundColor: COLOR_GREY });
+    addParagraphStyle(
+      idx,
+      paraEnd,
+      {
+        alignment: "CENTER",
+        indentStart: { magnitude: 96, unit: "PT" },
+        indentFirstLine: { magnitude: 96, unit: "PT" },
+        indentEnd: { magnitude: 96, unit: "PT" },
+        spaceAbove: { magnitude: 18, unit: "PT" },
+        spaceBelow: { magnitude: 10, unit: "PT" },
+        lineSpacing: 105,
+      },
+      "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,lineSpacing",
+    );
   } else if (/^\s*[\u2713\u2022\u2794]/.test(line)) {
     addParagraphStyle(
       idx,
