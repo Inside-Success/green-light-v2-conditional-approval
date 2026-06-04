@@ -5,6 +5,10 @@ const V2_WEBHOOK_URL =
   import.meta.env.VITE_V2_N8N_WEBHOOK_URL ||
   "https://insidesuccess.app.n8n.cloud/webhook/green-light-v2-conditional-approval";
 
+const V2_SAVE_WEBHOOK_URL =
+  import.meta.env.VITE_V2_N8N_SAVE_WEBHOOK_URL ||
+  "https://insidesuccess.app.n8n.cloud/webhook/green-light-v2-conditional-approval-save";
+
 const DEFAULT_DEADLINE = "Sunday 11.59pm EST";
 
 function getTranscriptShowSignal(transcript) {
@@ -21,6 +25,8 @@ function StatusPill({ status }) {
       ? "Validated"
       : status === "error"
         ? "Blocked"
+        : status === "saving"
+          ? "Saving"
         : status === "loading"
           ? "Generating"
           : "Ready";
@@ -33,8 +39,12 @@ export default function App() {
   const [showType, setShowType] = useState("normal");
   const [deadlineText, setDeadlineText] = useState(DEFAULT_DEADLINE);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [result, setResult] = useState(null);
+  const [draftText, setDraftText] = useState("");
+  const [savedDoc, setSavedDoc] = useState(null);
   const [error, setError] = useState("");
+  const [saveError, setSaveError] = useState("");
 
   const clientValidation = useMemo(
     () => validateClientPayload({ transcript, showType, deadlineText }),
@@ -54,7 +64,10 @@ export default function App() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setResult(null);
+    setDraftText("");
+    setSavedDoc(null);
     setError("");
+    setSaveError("");
 
     if (!clientValidation.ok) {
       setError(clientValidation.errors[0]);
@@ -92,7 +105,10 @@ export default function App() {
         throw new Error(message);
       }
 
+      const generatedDraft =
+        payload?.draft_text || payload?.preview || payload?.letter_text || "";
       setResult(payload);
+      setDraftText(generatedDraft);
     } catch (caughtError) {
       setError(caughtError.message || "V2 generation failed.");
     } finally {
@@ -100,12 +116,64 @@ export default function App() {
     }
   };
 
-  const preview = result?.preview || result?.letter_text || "";
+  const handleSaveToDrive = async () => {
+    setSaveError("");
+    setSavedDoc(null);
+
+    const cleanDraft = draftText.trim();
+    if (!cleanDraft) {
+      setSaveError("Generate or paste an edited V2 letter before sending to Google Drive.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(V2_SAVE_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          letter_text: cleanDraft,
+          draft_text: cleanDraft,
+          show_type: result?.show_type || showType,
+          guest_name: result?.guest_name || "",
+          doc_title: result?.doc_title || "",
+          warnings: result?.warnings || [],
+          requested_output: "v2_conditional_casting_approval_save",
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      const text = await response.text();
+      let payload;
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = { message: text };
+      }
+
+      if (!response.ok || payload?.ok === false) {
+        const message =
+          payload?.error ||
+          payload?.message ||
+          `V2 save workflow failed with status ${response.status}`;
+        throw new Error(message);
+      }
+
+      setSavedDoc(payload);
+    } catch (caughtError) {
+      setSaveError(caughtError.message || "V2 Google Drive save failed.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const warnings = [
     ...(clientValidation.warnings || []),
     ...(variantWarning ? [variantWarning] : []),
     ...((result?.warnings || []).filter(Boolean)),
   ];
+  const hasDraft = draftText.trim().length > 0;
+  const activeDoc = savedDoc || result;
 
   return (
     <main className="app-shell">
@@ -118,7 +186,17 @@ export default function App() {
           </p>
         </div>
         <StatusPill
-          status={isGenerating ? "loading" : error ? "error" : result ? "success" : "idle"}
+          status={
+            isGenerating
+              ? "loading"
+              : isSaving
+                ? "saving"
+              : error || saveError
+                ? "error"
+                : savedDoc || result
+                  ? "success"
+                  : "idle"
+          }
         />
       </section>
 
@@ -198,33 +276,66 @@ export default function App() {
           <div className="section-header">
             <div>
               <h2>V2 Output</h2>
-              <p>Review content and open the generated Google Doc from the V2 workflow.</p>
+              <p>Edit the draft here, then send the final version to Google Drive.</p>
             </div>
           </div>
 
-          {result?.document_url && (
-            <a className="doc-link" href={result.document_url} target="_blank" rel="noreferrer">
+          {savedDoc?.document_url && (
+            <a className="doc-link" href={savedDoc.document_url} target="_blank" rel="noreferrer">
               Open V2 Google Doc
             </a>
           )}
 
-          {result?.doc_title && (
+          {activeDoc?.doc_title && (
             <div className="metadata-row">
               <span>Document</span>
-              <strong>{result.doc_title}</strong>
+              <strong>{activeDoc.doc_title}</strong>
             </div>
           )}
 
-          {result?.validation_status && (
+          {activeDoc?.validation_status && (
             <div className="metadata-row">
               <span>Validation</span>
-              <strong>{result.validation_status}</strong>
+              <strong>{activeDoc.validation_status}</strong>
             </div>
           )}
 
-          <pre className="preview-pane">
-            {preview || "Generated V2 letter preview will appear here."}
-          </pre>
+          <label className="field-label" htmlFor="draft-editor">
+            Editable V2 letter
+          </label>
+          <textarea
+            id="draft-editor"
+            className="draft-editor"
+            value={draftText}
+            onChange={(event) => {
+              setDraftText(event.target.value);
+              setSavedDoc(null);
+              setSaveError("");
+            }}
+            placeholder="Generated V2 letter draft will appear here. You can edit it before sending it to Google Drive."
+            spellCheck="true"
+          />
+
+          <button
+            className="primary-action"
+            type="button"
+            disabled={isGenerating || isSaving || !hasDraft}
+            onClick={handleSaveToDrive}
+          >
+            {isSaving ? "Sending to Google Drive..." : "Send Edited Doc to Google Drive"}
+          </button>
+
+          {saveError && (
+            <div className="notice error">
+              <p>{saveError}</p>
+            </div>
+          )}
+
+          {savedDoc?.document_url && (
+            <div className="notice success">
+              <p>V2 Google Doc created successfully.</p>
+            </div>
+          )}
         </section>
       </form>
     </main>

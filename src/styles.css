@@ -103,6 +103,12 @@ h2 {
   color: #735011;
 }
 
+.status-pill.saving {
+  background: #e7eef8;
+  border-color: #8aa6ca;
+  color: #28496f;
+}
+
 .generator-grid {
   align-items: start;
   display: grid;
@@ -230,7 +236,8 @@ textarea:focus {
   text-align: right;
 }
 
-.preview-pane {
+.preview-pane,
+.draft-editor {
   background: #fffdf8;
   border: 1px solid #d8d0c1;
   border-radius: 8px;
@@ -243,6 +250,11 @@ textarea:focus {
   min-height: 560px;
   overflow: auto;
   padding: 18px;
+  white-space: pre-wrap;
+}
+
+.draft-editor {
+  min-height: 560px;
   white-space: pre-wrap;
 }
 
@@ -271,6 +283,12 @@ textarea:focus {
   background: #f8e5e1;
   border: 1px solid #d4978d;
   color: #8a2d20;
+}
+
+.notice.success {
+  background: #e6f3e8;
+  border: 1px solid #86b98d;
+  color: #245a2e;
 }
 
 @media (max-width: 980px) {
