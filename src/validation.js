@@ -19,10 +19,6 @@ export function validateClientPayload({ transcript, showType, deadlineText }) {
     errors.push("Normal shows require deadline text.");
   }
 
-  if (showType === "nlceo" && /deadline|expire|expiry|expires/i.test(deadlineText || "")) {
-    warnings.push("Next Level CEO ignores deadline text and removes expiry language.");
-  }
-
   return {
     ok: errors.length === 0,
     errors,

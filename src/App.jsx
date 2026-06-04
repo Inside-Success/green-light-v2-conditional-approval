@@ -36,6 +36,7 @@ function StatusPill({ status }) {
 
 export default function App() {
   const [transcript, setTranscript] = useState("");
+  const [clientName, setClientName] = useState("");
   const [showType, setShowType] = useState("normal");
   const [deadlineText, setDeadlineText] = useState(DEFAULT_DEADLINE);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -75,6 +76,7 @@ export default function App() {
     }
 
     setIsGenerating(true);
+    const cleanClientName = clientName.trim();
     try {
       const response = await fetch(V2_WEBHOOK_URL, {
         method: "POST",
@@ -82,6 +84,7 @@ export default function App() {
         body: JSON.stringify({
           content: transcript,
           transcript,
+          client_name: cleanClientName,
           show_type: showType,
           deadline_text: showType === "normal" ? deadlineText.trim() : "",
           requested_output: "v2_conditional_casting_approval",
@@ -136,6 +139,7 @@ export default function App() {
           draft_text: cleanDraft,
           show_type: result?.show_type || showType,
           guest_name: result?.guest_name || "",
+          client_name: clientName.trim(),
           doc_title: result?.doc_title || "",
           warnings: result?.warnings || [],
           requested_output: "v2_conditional_casting_approval_save",
@@ -242,6 +246,16 @@ export default function App() {
               />
             </>
           )}
+
+          <label className="field-label" htmlFor="client-name">
+            Client name <span className="optional-label">optional</span>
+          </label>
+          <input
+            id="client-name"
+            value={clientName}
+            onChange={(event) => setClientName(event.target.value)}
+            placeholder="Leave blank to let AI detect it from the transcript"
+          />
 
           <label className="field-label" htmlFor="transcript">
             Casting transcript
