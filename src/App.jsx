@@ -236,10 +236,7 @@ export default function App() {
       <section className="top-bar" aria-label="Green Light V2 status">
         <div>
           <p className="eyebrow">Inside Success TV</p>
-          <h1>Green Light Letter Generator</h1>
-          <p className="subcopy">
-            V2 conditional approval letter. Paste, generate, edit, and send to Drive.
-          </p>
+          <h1>Green Light V2</h1>
         </div>
         <StatusPill
           status={
@@ -258,18 +255,9 @@ export default function App() {
 
       <form className="generator-grid" onSubmit={handleSubmit}>
         <section className="panel input-panel">
-          <div className="mode-card" aria-label="Selected document type">
-            <div className="mode-icon" aria-hidden="true">GL</div>
-            <div>
-              <h2>Greenlight Letter</h2>
-              <p>Creates the editable V2 approval draft from the fixed Rudy template.</p>
-            </div>
-          </div>
-
           <div className="section-header">
             <div>
-              <h2>Generate Draft</h2>
-              <p>Use one browser tab per client. Your tab state is kept if you refresh.</p>
+              <h2>Generate Letter</h2>
             </div>
           </div>
 
@@ -307,24 +295,24 @@ export default function App() {
                 placeholder="AI detects it if blank"
               />
             </div>
+
+            {showType === "normal" && (
+              <div>
+                <label className="field-label" htmlFor="deadline">
+                  Deadline
+                </label>
+                <input
+                  id="deadline"
+                  value={deadlineText}
+                  onChange={(event) => setDeadlineText(event.target.value)}
+                  placeholder={DEFAULT_DEADLINE}
+                />
+              </div>
+            )}
           </div>
 
-          {showType === "normal" && (
-            <>
-              <label className="field-label" htmlFor="deadline">
-                Normal-show deadline text
-              </label>
-              <input
-                id="deadline"
-                value={deadlineText}
-                onChange={(event) => setDeadlineText(event.target.value)}
-                placeholder={DEFAULT_DEADLINE}
-              />
-            </>
-          )}
-
           <label className="field-label" htmlFor="transcript">
-            Casting transcript
+            Transcript
           </label>
           <textarea
             id="transcript"
@@ -358,46 +346,38 @@ export default function App() {
         </section>
 
         {showOutputPanel && <section className="panel output-panel">
-          <div className="section-header">
+          <div className="output-header">
             <div>
-              <h2>Editable V2 Letter</h2>
-              <p>Review the draft, make edits, then send the approved version to Drive.</p>
+              <h2>Review Letter</h2>
+            </div>
+
+            <div className="output-actions">
+              <button
+                className="primary-action"
+                type="button"
+                disabled={isGenerating || isSaving || !hasDraft}
+                onClick={handleSaveToDrive}
+              >
+                {isSaving ? "Sending..." : "Send to Google Drive"}
+              </button>
+
+              {savedDoc?.document_url && (
+                <a className="doc-link" href={savedDoc.document_url} target="_blank" rel="noreferrer">
+                  Open Doc
+                </a>
+              )}
             </div>
           </div>
 
-          <div className="output-actions">
-            <button
-              className="primary-action"
-              type="button"
-              disabled={isGenerating || isSaving || !hasDraft}
-              onClick={handleSaveToDrive}
-            >
-              {isSaving ? "Sending to Google Drive..." : "Send Edited Doc to Google Drive"}
-            </button>
-
-            {savedDoc?.document_url && (
-              <a className="doc-link" href={savedDoc.document_url} target="_blank" rel="noreferrer">
-                Open V2 Google Doc
-              </a>
-            )}
-          </div>
-
-          {activeDoc?.doc_title && (
-            <div className="metadata-row">
-              <span>Document</span>
-              <strong>{activeDoc.doc_title}</strong>
-            </div>
-          )}
-
-          {activeDoc?.validation_status && (
-            <div className="metadata-row">
-              <span>Validation</span>
-              <strong>{activeDoc.validation_status}</strong>
+          {(activeDoc?.doc_title || activeDoc?.validation_status) && (
+            <div className="metadata-strip">
+              {activeDoc?.doc_title && <span>{activeDoc.doc_title}</span>}
+              {activeDoc?.validation_status && <strong>{activeDoc.validation_status}</strong>}
             </div>
           )}
 
           <label className="field-label" htmlFor="draft-editor">
-            Editable V2 letter
+            Draft
           </label>
           <textarea
             id="draft-editor"
