@@ -496,10 +496,11 @@ export default function App() {
     setGenerationStatus("");
   };
 
+  const draftWarnings = (activeDraft?.payload?.warnings || []).filter(Boolean);
   const warnings = [
     ...(clientValidation.warnings || []),
     ...(variantWarning ? [variantWarning] : []),
-    ...((activeDraft?.payload?.warnings || []).filter(Boolean)),
+    ...(showOutputPanel ? [] : draftWarnings),
   ];
   const hasDraft = draftText.trim().length > 0;
   const activeDoc = savedDoc || activeDraft?.payload;
@@ -570,6 +571,14 @@ export default function App() {
                 >
                   {draft.label || `Client ${index + 1}`}
                 </button>
+              ))}
+            </div>
+          )}
+
+          {draftWarnings.length > 0 && (
+            <div className="notice warning output-warning" role="alert">
+              {draftWarnings.map((warning) => (
+                <p key={warning}>{warning}</p>
               ))}
             </div>
           )}
