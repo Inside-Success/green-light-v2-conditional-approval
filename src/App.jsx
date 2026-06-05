@@ -21,7 +21,7 @@ const DEFAULT_DEADLINE = "Sunday 11.59pm EST";
 const SESSION_STORAGE_KEY = "green-light-v2-dashboard-session-v1";
 const EDITOR_STORAGE_KEY = "green-light-v2-editor-settings-v1";
 const DEFAULT_EDITOR_NAME = "Adedokun Adedoyin";
-const ADD_EDITOR_VALUE = "__add_editor__";
+const EDITOR_OPTIONS = [DEFAULT_EDITOR_NAME, "Syed"];
 const POLL_INTERVAL_MS = 2500;
 const MAX_GENERATION_WAIT_MS = 10 * 60 * 1000;
 
@@ -53,23 +53,21 @@ function normalizeEditorName(value) {
 
 function readEditorSettings() {
   if (typeof window === "undefined") {
-    return { selectedEditorName: DEFAULT_EDITOR_NAME, editorNames: [DEFAULT_EDITOR_NAME] };
+    return { selectedEditorName: DEFAULT_EDITOR_NAME };
   }
 
   try {
     const parsed = JSON.parse(window.localStorage.getItem(EDITOR_STORAGE_KEY) || "{}");
-    const names = Array.isArray(parsed.editorNames)
-      ? parsed.editorNames.map(normalizeEditorName).filter(Boolean)
-      : [];
     const selectedEditorName = normalizeEditorName(parsed.selectedEditorName);
-    const mergedNames = Array.from(new Set([DEFAULT_EDITOR_NAME, ...names, selectedEditorName].filter(Boolean)));
+    const allowedName = EDITOR_OPTIONS.find(
+      (name) => name.toLowerCase() === selectedEditorName.toLowerCase(),
+    );
 
     return {
-      selectedEditorName: selectedEditorName || DEFAULT_EDITOR_NAME,
-      editorNames: mergedNames.length ? mergedNames : [DEFAULT_EDITOR_NAME],
+      selectedEditorName: allowedName || DEFAULT_EDITOR_NAME,
     };
   } catch {
-    return { selectedEditorName: DEFAULT_EDITOR_NAME, editorNames: [DEFAULT_EDITOR_NAME] };
+    return { selectedEditorName: DEFAULT_EDITOR_NAME };
   }
 }
 
@@ -118,7 +116,6 @@ function createRestoredDraft(savedState) {
 export default function App() {
   const [savedState] = useState(readSessionState);
   const [savedEditorSettings] = useState(readEditorSettings);
-  const [editorNames, setEditorNames] = useState(savedEditorSettings.editorNames);
   const [selectedEditorName, setSelectedEditorName] = useState(
     savedEditorSettings.selectedEditorName,
   );
@@ -219,12 +216,12 @@ export default function App() {
     try {
       window.localStorage.setItem(
         EDITOR_STORAGE_KEY,
-        JSON.stringify({ selectedEditorName, editorNames }),
+        JSON.stringify({ selectedEditorName }),
       );
     } catch {
       // Editor persistence is a convenience only; saving still defaults safely.
     }
-  }, [editorNames, selectedEditorName]);
+  }, [selectedEditorName]);
 
   const activeDraft = drafts[activeDraftIndex] || null;
   const draftText = activeDraft?.draftText || "";
@@ -240,24 +237,11 @@ export default function App() {
   };
 
   const handleEditorChange = (event) => {
-    const nextValue = event.target.value;
-    if (nextValue !== ADD_EDITOR_VALUE) {
-      setSelectedEditorName(nextValue || DEFAULT_EDITOR_NAME);
-      return;
-    }
-
-    const typedName = normalizeEditorName(window.prompt("Enter editor name") || "");
-    if (!typedName) {
-      return;
-    }
-
-    setEditorNames((currentNames) => {
-      const existingName = currentNames.find(
-        (name) => name.toLowerCase() === typedName.toLowerCase(),
-      );
-      return existingName ? currentNames : [...currentNames, typedName];
-    });
-    setSelectedEditorName(typedName);
+    const nextValue = normalizeEditorName(event.target.value);
+    const allowedName = EDITOR_OPTIONS.find(
+      (name) => name.toLowerCase() === nextValue.toLowerCase(),
+    );
+    setSelectedEditorName(allowedName || DEFAULT_EDITOR_NAME);
   };
 
   const buildGenerationRequests = () => {
@@ -602,12 +586,11 @@ export default function App() {
               onChange={handleEditorChange}
               disabled={isGenerating || isSaving}
             >
-              {editorNames.map((name) => (
+              {EDITOR_OPTIONS.map((name) => (
                 <option key={name} value={name}>
                   {name}
                 </option>
               ))}
-              <option value={ADD_EDITOR_VALUE}>+ Add editor...</option>
             </select>
           </label>
           <button className="secondary-action top-start-button" type="button" onClick={handleStartNew}>
