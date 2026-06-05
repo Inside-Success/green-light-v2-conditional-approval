@@ -1,4 +1,15 @@
-const built = $("Prepare Edited V2 Save Payload").first().json || {};
+const savePayload = $("Prepare Edited V2 Save Payload").first().json || {};
+function readOptionalNodeJson(nodeName) {
+  try {
+    return $(nodeName).first().json || {};
+  } catch {
+    return {};
+  }
+}
+const createdFolderData = readOptionalNodeJson("Use Created V2 Editor Folder");
+const selectedFolderData = readOptionalNodeJson("Select V2 Editor Folder");
+const folderRoutingData = createdFolderData.editor_folder_id ? createdFolderData : selectedFolderData;
+const built = { ...savePayload, ...folderRoutingData };
 const docData = $("Create V2 Google Doc").first().json || {};
 const headerData = $("Create V2 Header").first().json || {};
 const footerData = $("Create V2 Footer").first().json || {};

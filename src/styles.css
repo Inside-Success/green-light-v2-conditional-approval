@@ -51,6 +51,42 @@ button {
   gap: 10px;
 }
 
+.editor-select-wrap {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+}
+
+.editor-select-wrap span {
+  color: rgba(243, 240, 232, 0.55);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.editor-select-wrap select {
+  appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, rgba(243, 240, 232, 0.74) 50%) calc(100% - 14px) 50% / 6px 6px no-repeat,
+    linear-gradient(135deg, rgba(243, 240, 232, 0.74) 50%, transparent 50%) calc(100% - 10px) 50% / 6px 6px no-repeat,
+    #101010;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 999px;
+  color: #f3f0e8;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 850;
+  height: 36px;
+  max-width: 210px;
+  min-width: 170px;
+  outline: none;
+  padding: 0 28px 0 12px;
+}
+
+.editor-select-wrap select:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .eyebrow {
   color: #d4af37;
   font-size: 11px;
@@ -610,6 +646,10 @@ textarea:focus {
     gap: 8px;
   }
 
+  .editor-select-wrap {
+    justify-content: flex-end;
+  }
+
   h1 {
     font-size: 28px;
   }
@@ -682,6 +722,16 @@ textarea:focus {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     margin-top: 10px;
+  }
+
+  .editor-select-wrap {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .editor-select-wrap select {
+    max-width: none;
+    width: 100%;
   }
 
   h1 {
