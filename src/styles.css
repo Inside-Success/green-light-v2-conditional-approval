@@ -370,6 +370,13 @@ textarea:focus {
   opacity: 1;
 }
 
+.generation-status {
+  color: rgba(243, 240, 232, 0.62);
+  font-size: 13px;
+  font-weight: 750;
+  margin-top: 8px;
+}
+
 .metadata-strip {
   align-items: center;
   background: #101010;

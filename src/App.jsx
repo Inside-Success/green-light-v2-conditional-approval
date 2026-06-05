@@ -5,12 +5,33 @@ const V2_WEBHOOK_URL =
   import.meta.env.VITE_V2_N8N_WEBHOOK_URL ||
   "https://insidesuccess.app.n8n.cloud/webhook/green-light-v2-conditional-approval";
 
+const V2_ASYNC_WEBHOOK_URL =
+  import.meta.env.VITE_V2_N8N_ASYNC_WEBHOOK_URL ||
+  "https://insidesuccess.app.n8n.cloud/webhook/green-light-v2-conditional-approval-start";
+
+const V2_STATUS_WEBHOOK_URL =
+  import.meta.env.VITE_V2_N8N_STATUS_WEBHOOK_URL ||
+  "https://insidesuccess.app.n8n.cloud/webhook/green-light-v2-conditional-approval-status";
+
 const V2_SAVE_WEBHOOK_URL =
   import.meta.env.VITE_V2_N8N_SAVE_WEBHOOK_URL ||
   "https://insidesuccess.app.n8n.cloud/webhook/green-light-v2-conditional-approval-save";
 
 const DEFAULT_DEADLINE = "Sunday 11.59pm EST";
 const SESSION_STORAGE_KEY = "green-light-v2-dashboard-session-v1";
+const POLL_INTERVAL_MS = 2500;
+const MAX_GENERATION_WAIT_MS = 10 * 60 * 1000;
+
+const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+async function readJsonResponse(response) {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
 
 function readSessionState() {
   if (typeof window === "undefined") return {};
@@ -87,6 +108,7 @@ export default function App() {
   );
   const [activeDraftIndex, setActiveDraftIndex] = useState(savedState.activeDraftIndex || 0);
   const [error, setError] = useState("");
+  const [generationStatus, setGenerationStatus] = useState("");
 
   const clientValidation = useMemo(
     () =>
@@ -212,11 +234,123 @@ export default function App() {
     }));
   };
 
+  const pollGenerationJob = async (jobId, label) => {
+    const startedAt = Date.now();
+    let transientFailures = 0;
+
+    while (Date.now() - startedAt < MAX_GENERATION_WAIT_MS) {
+      await wait(POLL_INTERVAL_MS);
+
+      let response;
+      let payload;
+      try {
+        const statusUrl = new URL(V2_STATUS_WEBHOOK_URL);
+        statusUrl.searchParams.set("job_id", jobId);
+        statusUrl.searchParams.set("_", String(Date.now()));
+
+        response = await fetch(statusUrl.toString(), {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        payload = await readJsonResponse(response);
+      } catch (caughtError) {
+        transientFailures += 1;
+        if (transientFailures >= 8) {
+          throw new Error(
+            caughtError.message ||
+              "V2 generation is still running, but the dashboard could not reconnect to the status endpoint.",
+          );
+        }
+        setGenerationStatus(`${label}: still generating, reconnecting to status...`);
+        continue;
+      }
+
+      transientFailures = 0;
+
+      if (!response.ok) {
+        throw new Error(
+          payload?.error ||
+            payload?.message ||
+            `V2 status check failed with status ${response.status}`,
+        );
+      }
+
+      if (payload?.status === "complete" || payload?.mode === "draft") {
+        return payload;
+      }
+
+      if (payload?.status === "failed" || payload?.ok === false) {
+        throw new Error(
+          payload?.error ||
+            payload?.message ||
+            "V2 generation failed before a draft was ready.",
+        );
+      }
+
+      setGenerationStatus(
+        `${label}: ${payload?.progress || "Still generating with Sonnet 4.6..."}`,
+      );
+    }
+
+    throw new Error("V2 generation timed out before the draft was ready.");
+  };
+
+  const requestDraftPayload = async (requestBody, label) => {
+    if (V2_ASYNC_WEBHOOK_URL && V2_STATUS_WEBHOOK_URL) {
+      let startResponse;
+      let startPayload;
+      try {
+        setGenerationStatus(`${label}: starting background generation...`);
+        startResponse = await fetch(V2_ASYNC_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+        startPayload = await readJsonResponse(startResponse);
+      } catch (caughtError) {
+        throw new Error(
+          caughtError.message ||
+            "The dashboard could not start V2 generation. Please try again.",
+        );
+      }
+
+      if (!startResponse.ok || !startPayload?.job_id) {
+        throw new Error(
+          startPayload?.error ||
+            startPayload?.message ||
+            `V2 async start failed with status ${startResponse.status}`,
+        );
+      }
+
+      setGenerationStatus(`${label}: generating with Sonnet 4.6...`);
+      return await pollGenerationJob(startPayload.job_id, label);
+    }
+
+    const response = await fetch(V2_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    });
+    const payload = await readJsonResponse(response);
+
+    if (!response.ok || payload?.ok === false) {
+      const message =
+        payload?.error ||
+        payload?.message ||
+        `V2 workflow failed with status ${response.status}`;
+      throw new Error(message);
+    }
+
+    return payload;
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setDrafts([]);
     setActiveDraftIndex(0);
     setError("");
+    setGenerationStatus("");
 
     if (!clientValidation.ok) {
       setError(clientValidation.errors[0]);
@@ -229,10 +363,12 @@ export default function App() {
       const generatedDrafts = [];
 
       for (const [index, generationRequest] of generationRequests.entries()) {
-        const response = await fetch(V2_WEBHOOK_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        const label =
+          generationRequests.length > 1
+            ? `Draft ${index + 1} of ${generationRequests.length}`
+            : "Draft";
+        const payload = await requestDraftPayload(
+          {
             content: transcript,
             transcript,
             client_name: generationRequest.clientName,
@@ -245,24 +381,9 @@ export default function App() {
             target_client_position: generationRequest.targetClientPosition,
             client_names: generationRequest.clientNames,
             timestamp: new Date().toISOString(),
-          }),
-        });
-
-        const text = await response.text();
-        let payload;
-        try {
-          payload = JSON.parse(text);
-        } catch {
-          payload = { message: text };
-        }
-
-        if (!response.ok || payload?.ok === false) {
-          const message =
-            payload?.error ||
-            payload?.message ||
-            `V2 workflow failed with status ${response.status}`;
-          throw new Error(message);
-        }
+          },
+          label,
+        );
 
         const generatedDraft =
           payload?.draft_text || payload?.preview || payload?.letter_text || "";
@@ -282,12 +403,19 @@ export default function App() {
         });
       }
 
+      setGenerationStatus("Draft ready.");
       setDrafts(generatedDrafts);
       setActiveDraftIndex(0);
     } catch (caughtError) {
-      setError(caughtError.message || "V2 generation failed.");
+      const message = caughtError.message || "V2 generation failed.";
+      setError(
+        message === "Failed to fetch"
+          ? "The dashboard could not reach n8n. Please check the connection and try again."
+          : message,
+      );
     } finally {
       setIsGenerating(false);
+      window.setTimeout(() => setGenerationStatus(""), 1200);
     }
   };
 
@@ -365,6 +493,7 @@ export default function App() {
     setDrafts([]);
     setActiveDraftIndex(0);
     setError("");
+    setGenerationStatus("");
   };
 
   const warnings = [
@@ -630,6 +759,12 @@ export default function App() {
               Start New
             </button>
           </div>
+
+          {isGenerating && generationStatus && (
+            <div className="generation-status" role="status" aria-live="polite">
+              {generationStatus}
+            </div>
+          )}
 
           {(error || warnings.length > 0) && (
             <div className={error ? "notice error" : "notice warning"}>
