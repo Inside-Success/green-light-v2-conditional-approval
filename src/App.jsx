@@ -109,6 +109,7 @@ export default function App() {
   const [activeDraftIndex, setActiveDraftIndex] = useState(savedState.activeDraftIndex || 0);
   const [error, setError] = useState("");
   const [generationStatus, setGenerationStatus] = useState("");
+  const [saveNotice, setSaveNotice] = useState(null);
 
   const clientValidation = useMemo(
     () =>
@@ -351,6 +352,7 @@ export default function App() {
     setActiveDraftIndex(0);
     setError("");
     setGenerationStatus("");
+    setSaveNotice(null);
 
     if (!clientValidation.ok) {
       setError(clientValidation.errors[0]);
@@ -474,7 +476,12 @@ export default function App() {
       }
 
       updateActiveDraft({ savedDoc: payload, saveError: "" });
+      setSaveNotice({
+        docTitle: payload?.doc_title || "Google Doc",
+        documentUrl: payload?.document_url || "",
+      });
     } catch (caughtError) {
+      setSaveNotice(null);
       updateActiveDraft({ saveError: caughtError.message || "V2 Google Drive save failed." });
     } finally {
       setIsSaving(false);
@@ -494,6 +501,7 @@ export default function App() {
     setActiveDraftIndex(0);
     setError("");
     setGenerationStatus("");
+    setSaveNotice(null);
   };
 
   const draftWarnings = (activeDraft?.payload?.warnings || []).filter(Boolean);
@@ -513,20 +521,54 @@ export default function App() {
           <p className="eyebrow">Inside Success TV</p>
           <h1>Green Light V2</h1>
         </div>
-        <StatusPill
-          status={
-            isGenerating
-              ? "loading"
-              : isSaving
-                ? "saving"
-              : error || saveError
-                ? "error"
-                : savedDoc || activeDraft?.payload
-                  ? "success"
-                  : "idle"
-          }
-        />
+        <div className="top-actions">
+          <button className="secondary-action top-start-button" type="button" onClick={handleStartNew}>
+            Start New
+          </button>
+          <StatusPill
+            status={
+              isGenerating
+                ? "loading"
+                : isSaving
+                  ? "saving"
+                : error || saveError
+                  ? "error"
+                  : savedDoc || activeDraft?.payload
+                    ? "success"
+                    : "idle"
+            }
+          />
+        </div>
       </section>
+
+      {saveNotice && (
+        <div className="top-notice success" role="status" aria-live="polite">
+          <div>
+            <strong>Google Doc sent successfully.</strong>
+            <span>{saveNotice.docTitle}</span>
+          </div>
+          <div className="top-notice-actions">
+            {saveNotice.documentUrl && (
+              <a href={saveNotice.documentUrl} target="_blank" rel="noreferrer">
+                Open Doc
+              </a>
+            )}
+            <button type="button" onClick={() => setSaveNotice(null)}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isGenerating && (
+        <div className="loading-overlay" role="status" aria-live="assertive">
+          <div className="loading-dialog">
+            <div className="loading-spinner" aria-hidden="true" />
+            <p>Generating V2 Letter</p>
+            <span>{generationStatus || "Preparing your draft..."}</span>
+          </div>
+        </div>
+      )}
 
       <form className="generator-grid" onSubmit={handleSubmit}>
         {showOutputPanel && <section className="panel output-panel">
@@ -591,6 +633,7 @@ export default function App() {
             className="draft-editor"
             value={draftText}
             onChange={(event) => {
+              setSaveNotice(null);
               updateActiveDraft({
                 draftText: event.target.value,
                 savedDoc: null,
@@ -756,16 +799,13 @@ export default function App() {
             spellCheck="false"
           />
 
-          <div className="action-row">
+          <div className="action-row single-action">
             <button
               className="primary-action"
               type="submit"
               disabled={isGenerating || !clientValidation.ok}
             >
               {isGenerating ? "Generating V2 Letter..." : "Generate V2 Letter"}
-            </button>
-            <button className="secondary-action" type="button" onClick={handleStartNew}>
-              Start New
             </button>
           </div>
 
