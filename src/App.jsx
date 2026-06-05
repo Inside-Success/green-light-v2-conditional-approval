@@ -497,14 +497,14 @@ export default function App() {
   };
 
   const draftWarnings = (activeDraft?.payload?.warnings || []).filter(Boolean);
+  const hasDraft = draftText.trim().length > 0;
+  const activeDoc = savedDoc || activeDraft?.payload;
+  const showOutputPanel = drafts.length > 0 || Boolean(saveError);
   const warnings = [
     ...(clientValidation.warnings || []),
     ...(variantWarning ? [variantWarning] : []),
     ...(showOutputPanel ? [] : draftWarnings),
   ];
-  const hasDraft = draftText.trim().length > 0;
-  const activeDoc = savedDoc || activeDraft?.payload;
-  const showOutputPanel = drafts.length > 0 || Boolean(saveError);
 
   return (
     <main className="app-shell">
