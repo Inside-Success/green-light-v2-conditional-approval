@@ -21,7 +21,7 @@ const DEFAULT_DEADLINE = "Sunday 11.59pm EST";
 const SESSION_STORAGE_KEY = "green-light-v2-dashboard-session-v1";
 const EDITOR_STORAGE_KEY = "green-light-v2-editor-settings-v1";
 const DEFAULT_EDITOR_NAME = "Adedokun Adedoyin";
-const EDITOR_OPTIONS = [DEFAULT_EDITOR_NAME, "Syed"];
+const EDITOR_OPTIONS = [DEFAULT_EDITOR_NAME, "Syed", "Daniel"];
 const POLL_INTERVAL_MS = 2500;
 const MAX_GENERATION_WAIT_MS = 10 * 60 * 1000;
 
