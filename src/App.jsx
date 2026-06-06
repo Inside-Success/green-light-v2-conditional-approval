@@ -554,7 +554,7 @@ export default function App() {
   };
 
   const handleRefineDraft = async (event) => {
-    event.preventDefault();
+    event?.preventDefault?.();
 
     if (!activeDraft) {
       setError("Generate a V2 letter before using AI refine.");
@@ -803,7 +803,7 @@ export default function App() {
             </div>
           )}
 
-          <form className="refine-box" onSubmit={handleRefineDraft}>
+          <div className="refine-box">
             <label className="field-label" htmlFor="refine-instructions">
               AI refine
             </label>
@@ -817,19 +817,19 @@ export default function App() {
               />
               <button
                 className="secondary-action"
-                type="submit"
+                type="button"
+                onClick={handleRefineDraft}
                 disabled={
                   isGenerating ||
                   isSaving ||
                   isRefining ||
-                  !hasDraft ||
-                  !refineInstructions.trim()
+                  !hasDraft
                 }
               >
                 {isRefining ? "Refining..." : "Refine"}
               </button>
             </div>
-          </form>
+          </div>
 
           <label className="field-label" htmlFor="draft-editor">
             Draft
