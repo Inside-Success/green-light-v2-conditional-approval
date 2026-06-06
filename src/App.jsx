@@ -17,6 +17,10 @@ const V2_SAVE_WEBHOOK_URL =
   import.meta.env.VITE_V2_N8N_SAVE_WEBHOOK_URL ||
   "https://insidesuccess.app.n8n.cloud/webhook/green-light-v2-conditional-approval-save";
 
+const V2_REFINE_WEBHOOK_URL =
+  import.meta.env.VITE_V2_N8N_REFINE_WEBHOOK_URL ||
+  "https://insidesuccess.app.n8n.cloud/webhook/green-light-v2-conditional-approval-refine";
+
 const DEFAULT_DEADLINE = "Sunday 11.59pm EST";
 const SESSION_STORAGE_KEY = "green-light-v2-dashboard-session-v1";
 const EDITOR_STORAGE_KEY = "green-light-v2-editor-settings-v1";
@@ -85,6 +89,8 @@ function StatusPill({ status }) {
       ? "Validated"
       : status === "error"
         ? "Blocked"
+        : status === "refining"
+          ? "Refining"
         : status === "saving"
           ? "Saving"
         : status === "loading"
@@ -134,6 +140,8 @@ export default function App() {
   const deadlineText = DEFAULT_DEADLINE;
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
+  const [refineInstructions, setRefineInstructions] = useState("");
   const [drafts, setDrafts] = useState(
     Array.isArray(savedState.drafts) && savedState.drafts.length
       ? savedState.drafts
@@ -405,6 +413,7 @@ export default function App() {
     setError("");
     setGenerationStatus("");
     setSaveNotice(null);
+    setRefineInstructions("");
 
     if (!clientValidation.ok) {
       setError(clientValidation.errors[0]);
@@ -544,6 +553,91 @@ export default function App() {
     }
   };
 
+  const handleRefineDraft = async (event) => {
+    event.preventDefault();
+
+    if (!activeDraft) {
+      setError("Generate a V2 letter before using AI refine.");
+      return;
+    }
+
+    const cleanDraft = draftText.trim();
+    const cleanInstructions = refineInstructions.trim();
+    if (!cleanDraft) {
+      updateActiveDraft({
+        saveError: "Generate or paste an edited V2 letter before using AI refine.",
+      });
+      return;
+    }
+    if (!cleanInstructions) {
+      updateActiveDraft({ saveError: "Enter what you want AI to refine first." });
+      return;
+    }
+
+    setIsRefining(true);
+    setError("");
+    setSaveNotice(null);
+    updateActiveDraft({ saveError: "" });
+
+    try {
+      const response = await fetch(V2_REFINE_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draft_text: cleanDraft,
+          letter_text: cleanDraft,
+          instructions: cleanInstructions,
+          query: cleanInstructions,
+          transcript,
+          content: transcript,
+          show_type: activeDraft.payload?.show_type || showType,
+          guest_name: activeDraft.payload?.guest_name || "",
+          client_name: activeDraft.targetClientName || clientName.trim(),
+          doc_title: activeDraft.payload?.doc_title || "",
+          warnings: activeDraft.payload?.warnings || [],
+          multi_client: Boolean(activeDraft.multiClient),
+          multi_client_letter_count: activeDraft.letterCount || 1,
+          target_client_name: activeDraft.targetClientName || "",
+          target_client_position: activeDraft.targetClientPosition || 1,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      const payload = await readJsonResponse(response);
+      if (!response.ok || payload?.ok === false) {
+        throw new Error(
+          payload?.error ||
+            payload?.message ||
+            `V2 refine workflow failed with status ${response.status}`,
+        );
+      }
+
+      const refinedDraft = payload?.draft_text || payload?.preview || "";
+      if (!refinedDraft.trim()) {
+        throw new Error("V2 refine returned an empty draft.");
+      }
+
+      updateActiveDraft({
+        draftText: refinedDraft,
+        savedDoc: null,
+        saveError: "",
+        label: payload?.guest_name || activeDraft.label,
+        payload: {
+          ...(activeDraft.payload || {}),
+          ...payload,
+          warnings: Array.isArray(payload?.warnings)
+            ? payload.warnings
+            : activeDraft.payload?.warnings || [],
+        },
+      });
+      setRefineInstructions("");
+    } catch (caughtError) {
+      updateActiveDraft({ saveError: caughtError.message || "V2 AI refine failed." });
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
   const handleStartNew = () => {
     setTranscript("");
     setClientName("");
@@ -558,6 +652,7 @@ export default function App() {
     setError("");
     setGenerationStatus("");
     setSaveNotice(null);
+    setRefineInstructions("");
   };
 
   const draftWarnings = (activeDraft?.payload?.warnings || []).filter(Boolean);
@@ -584,7 +679,7 @@ export default function App() {
               id="editor-select"
               value={selectedEditorName}
               onChange={handleEditorChange}
-              disabled={isGenerating || isSaving}
+              disabled={isGenerating || isSaving || isRefining}
             >
               {EDITOR_OPTIONS.map((name) => (
                 <option key={name} value={name}>
@@ -593,13 +688,20 @@ export default function App() {
               ))}
             </select>
           </label>
-          <button className="secondary-action top-start-button" type="button" onClick={handleStartNew}>
+          <button
+            className="secondary-action top-start-button"
+            type="button"
+            onClick={handleStartNew}
+            disabled={isGenerating || isSaving || isRefining}
+          >
             Start New
           </button>
           <StatusPill
             status={
               isGenerating
                 ? "loading"
+                : isRefining
+                  ? "refining"
                 : isSaving
                   ? "saving"
                 : error || saveError
@@ -632,12 +734,16 @@ export default function App() {
         </div>
       )}
 
-      {isGenerating && (
+      {(isGenerating || isRefining) && (
         <div className="loading-overlay" role="status" aria-live="assertive">
           <div className="loading-dialog">
             <div className="loading-spinner" aria-hidden="true" />
-            <p>Generating V2 Letter</p>
-            <span>{generationStatus || "Preparing your draft..."}</span>
+            <p>{isRefining ? "Refining V2 Letter" : "Generating V2 Letter"}</p>
+            <span>
+              {isRefining
+                ? "Applying AI changes only to editable story/name sections..."
+                : generationStatus || "Preparing your draft..."}
+            </span>
           </div>
         </div>
       )}
@@ -653,7 +759,7 @@ export default function App() {
               <button
                 className="primary-action"
                 type="button"
-                disabled={isGenerating || isSaving || !hasDraft}
+                disabled={isGenerating || isSaving || isRefining || !hasDraft}
                 onClick={handleSaveToDrive}
               >
                 {isSaving ? "Sending..." : "Send to Google Drive"}
@@ -697,6 +803,34 @@ export default function App() {
             </div>
           )}
 
+          <form className="refine-box" onSubmit={handleRefineDraft}>
+            <label className="field-label" htmlFor="refine-instructions">
+              AI refine
+            </label>
+            <div className="refine-row">
+              <input
+                id="refine-instructions"
+                value={refineInstructions}
+                onChange={(event) => setRefineInstructions(event.target.value)}
+                placeholder="Example: improve the story flow, or fix the client name"
+                disabled={isGenerating || isSaving || isRefining || !hasDraft}
+              />
+              <button
+                className="secondary-action"
+                type="submit"
+                disabled={
+                  isGenerating ||
+                  isSaving ||
+                  isRefining ||
+                  !hasDraft ||
+                  !refineInstructions.trim()
+                }
+              >
+                {isRefining ? "Refining..." : "Refine"}
+              </button>
+            </div>
+          </form>
+
           <label className="field-label" htmlFor="draft-editor">
             Draft
           </label>
@@ -710,6 +844,10 @@ export default function App() {
                 draftText: event.target.value,
                 savedDoc: null,
                 saveError: "",
+                payload: {
+                  ...(activeDraft.payload || {}),
+                  validation_status: "edited",
+                },
               });
             }}
             placeholder="Generated V2 letter draft will appear here. You can edit it before sending it to Google Drive."
@@ -875,7 +1013,7 @@ export default function App() {
             <button
               className="primary-action"
               type="submit"
-              disabled={isGenerating || !clientValidation.ok}
+              disabled={isGenerating || isRefining || !clientValidation.ok}
             >
               {isGenerating ? "Generating V2 Letter..." : "Generate V2 Letter"}
             </button>

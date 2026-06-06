@@ -16,6 +16,12 @@ Production webhook URL used by the dashboard:
 https://insidesuccess.app.n8n.cloud/webhook/green-light-v2-conditional-approval
 ```
 
+AI refine webhook URL used by the dashboard:
+
+```text
+https://insidesuccess.app.n8n.cloud/webhook/green-light-v2-conditional-approval-refine
+```
+
 Drive folder target:
 
 ```text
@@ -37,4 +43,5 @@ Current behavior:
 - Normal shows include the `IMPORTANT` deadline section.
 - Next Level CEO/NLCEO shows omit deadline and expiry language.
 - The AI fills only content slots from the fixed Conditional Casting Approval template.
-- Generated files use `Green Light - {Client Name} x {Show Name}`.
+- AI refine can update only editable story/name sections; fixed template text is preserved and editor warnings are returned when a requested change touches locked copy.
+- Generated files use `Inside Success TV x {Client Name}`.
