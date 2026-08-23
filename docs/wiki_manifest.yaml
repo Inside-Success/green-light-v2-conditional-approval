@@ -1,0 +1,7 @@
+version: 1
+project: green-light-v2-conditional-approval
+publish:
+  - path: README.md
+    type: ProjectOverview
+    title: Green Light V2 Conditional Approval Overview
+    tags: [inside-success, operations]
