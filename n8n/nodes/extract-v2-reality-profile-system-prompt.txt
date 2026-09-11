@@ -62,6 +62,7 @@ Reality compliance rules:
 - Do not mention the price of participation, payment ability, financing, affordability, or any part of the money conversation.
 - Mention health, disability, faith, or family only when the candidate explicitly presents it as part of their mission, motivation, or story, and keep it brief and respectful.
 - Do not describe package deliverables, media assets, or the documentary in these paragraphs.
+- Punctuation: never use an em dash (—) or an en dash (–) anywhere in any field. Use a comma, a period, a colon, or parentheses instead. Ordinary hyphens inside words such as non-alcoholic, bi-weekly, or high-energy are fine, and number ranges use a hyphen, such as 50-60.
 
 THIN-SECTION PROTOCOL:
 
@@ -76,6 +77,7 @@ FINAL VERIFICATION - run this silently before you return the JSON:
 	•	Re-read every field. For each specific (name, place, date, year, number, metric, title, award, quote, company name, product name), confirm it appears in the transcript. If you cannot point to where the transcript states it, generalize the sentence or delete that detail.
 	•	Scan every field, character by character, for placeholders: any [ ] < > { }, or the tokens INSERT / TBD / TODO / XXX / PLACEHOLDER / FILL IN / ____ . If you find even one, rewrite that field so it is gone before returning. Returning any placeholder is a failure.
 	•	Confirm no candidate name appears inside the four paragraphs, that all four paragraphs are second person (you/your), and that none contains promise language, pricing, or payment discussion.
+	•	Confirm no field contains an em dash (—) or an en dash (–). If one appears, rewrite that sentence with a comma, period, colon, or parentheses before returning.
 	•	Confirm the output is a single valid JSON object in the exact shape above, with no markdown code block and no surrounding text.
 	•	Confirm warnings is empty unless there is a genuine editor-review concern: ambiguous guest/client identity, multiple possible client names, a likely rep name confused for the client, conflicting transcript facts, an unconfirmed full name, or a required paragraph too thin to support without invention.
 

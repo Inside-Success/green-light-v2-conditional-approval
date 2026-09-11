@@ -1,5 +1,16 @@
 # V2 Workflow Changelog
 
+## 2026-09-11 - Reality Show: no em/en dashes in AI text
+
+Production workflow: `Green Light V2 - Conditional Casting Approval` (`TfpAYWYtDpOLWo2M`). Reality variant only; Normal and NLCEO untouched.
+
+- `Extract V2 Reality Profile JSON` system prompt: added a punctuation rule (no em dash or en dash in any field; hyphens inside words and number ranges are fine) plus a matching final-verification bullet.
+- `Refine V2 Draft JSON` system prompt: same rule in the reality section.
+- `Build V2 Letter` (reality branch only): `normalizeRealityDashes` runs on the four AI paragraphs before the softener. Digit-dash-digit becomes a hyphen (50-60), a dash next to existing punctuation is dropped, any other em/en dash becomes a comma. Ordinary hyphens are a different character and are never touched.
+- `Apply V2 Refine Guardrails`: the same cleanup is applied to a replaced slot only when `show_type` is `reality`.
+
+Verification: harness shows Normal and NLCEO builds and refines are byte-identical to the previous version even when their AI text contains dashes; reality dash cases (spaced, unspaced, after a colon, number range, hyphenated words) all pass; live reality drafts and a reality refine returned zero em/en dashes in the AI paragraphs.
+
 ## 2026-09-11 - Reality Show variant
 
 Production workflow: `Green Light V2 - Conditional Casting Approval` (`TfpAYWYtDpOLWo2M`)

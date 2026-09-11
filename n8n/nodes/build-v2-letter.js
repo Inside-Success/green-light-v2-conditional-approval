@@ -353,6 +353,17 @@ const baseWarnings = uniqueCleanWarnings(
 
 if (showType === 'reality') {
   const realityWarnings = [];
+  function normalizeRealityDashes(value) {
+    let text = String(value || '');
+    if (!/[–—]/.test(text)) return text;
+    text = text.replace(/(\d)\s*[–—]+\s*(\d)/g, '$1-$2');
+    text = text.replace(/^\s*[–—]+\s*/, '');
+    text = text.replace(/\s*[–—]+\s*$/, '.');
+    text = text.replace(/([,;:])\s*[–—]+\s*/g, '$1 ');
+    text = text.replace(/\s*[–—]+\s*([,;:.!?])/g, '$1');
+    text = text.replace(/\s*[–—]+\s*/g, ', ');
+    return text.replace(/\s+/g, ' ').trim();
+  }
   function pickRealityField(...keys) {
     for (const key of keys) {
       const value = extracted[key];
@@ -361,10 +372,10 @@ if (showType === 'reality') {
     return '';
   }
   const realityRaw = {
-    business_experience: cleanParagraph(pickRealityField('business_experience', 'businessExperience')),
-    competitive_edge: cleanParagraph(pickRealityField('competitive_edge', 'competitiveEdge')),
-    personality: cleanParagraph(pickRealityField('personality', 'personality_profile')),
-    wildcard: cleanParagraph(pickRealityField('wildcard', 'the_wildcard', 'wild_card', 'wildCard')),
+    business_experience: cleanParagraph(normalizeRealityDashes(pickRealityField('business_experience', 'businessExperience'))),
+    competitive_edge: cleanParagraph(normalizeRealityDashes(pickRealityField('competitive_edge', 'competitiveEdge'))),
+    personality: cleanParagraph(normalizeRealityDashes(pickRealityField('personality', 'personality_profile'))),
+    wildcard: cleanParagraph(normalizeRealityDashes(pickRealityField('wildcard', 'the_wildcard', 'wild_card', 'wildCard'))),
   };
   const realityData = {
     guest_name: finalGuestName,

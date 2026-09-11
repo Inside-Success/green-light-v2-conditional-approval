@@ -194,6 +194,18 @@ function claimHits(value) {
   return [...new Set(hits)];
 }
 
+function normalizeRealityDashes(value) {
+  let text = String(value || '');
+  if (!/[–—]/.test(text)) return text;
+  text = text.replace(/(\d)\s*[–—]+\s*(\d)/g, '$1-$2');
+  text = text.replace(/^\s*[–—]+\s*/, '');
+  text = text.replace(/\s*[–—]+\s*$/, '.');
+  text = text.replace(/([,;:])\s*[–—]+\s*/g, '$1 ');
+  text = text.replace(/\s*[–—]+\s*([,;:.!?])/g, '$1');
+  text = text.replace(/\s*[–—]+\s*/g, ', ');
+  return text.replace(/\s+/g, ' ').trim();
+}
+
 function buildDocTitle(name) {
   const titleName = cleanTitleName(name || 'Edited Draft');
   return `Inside Success TV x ${titleName}`
@@ -247,7 +259,8 @@ if (aiGuestName && aiGuestName !== originalGuestName) {
 for (const slot of editableSlots) {
   const replacement = extractBetween(aiDraft, slot.start, slot.end);
   if (replacement) {
-    finalDraft = replaceBetween(finalDraft, slot.start, slot.end, replacement);
+    const safeReplacement = prep.show_type === 'reality' ? normalizeRealityDashes(replacement) : replacement;
+    finalDraft = replaceBetween(finalDraft, slot.start, slot.end, safeReplacement);
   }
 }
 
