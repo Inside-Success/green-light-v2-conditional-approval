@@ -1,0 +1,33 @@
+={{ (() => {
+  const clean = $('Clean V2 Transcript').first().json || {};
+  const transcript = clean.cleaned_transcript || '';
+  const overrideName = clean.manual_client_name || '';
+
+  if (!clean.multi_client) {
+    return 'OPTIONAL_CLIENT_NAME_OVERRIDE: ' + overrideName + '\n\nTRANSCRIPT:\n' + transcript;
+  }
+
+  const clientNames = Array.isArray(clean.client_names)
+    ? clean.client_names.filter(Boolean).join(', ')
+    : '';
+
+  return `OPTIONAL_CLIENT_NAME_OVERRIDE: ${overrideName}
+
+MULTI_CLIENT_TRANSCRIPT_MODE: true
+REQUESTED_OUTPUT_COUNT: ${clean.multi_client_letter_count || 1}
+TARGET_CLIENT_POSITION: ${clean.target_client_position || 1}
+TARGET_CLIENT_NAME: ${clean.target_client_name || '[not provided]'}
+KNOWN_CLIENT_NAMES: ${clientNames || '[not provided]'}
+
+MULTI_CLIENT_SELECTION_RULES:
+- This transcript contains more than one audition client/candidate.
+- Return JSON for exactly one requested client only.
+- Do not mix stories, answers, business details, achievements, quotes, mission points, or personal background from another client.
+- If TARGET_CLIENT_NAME is provided, use only that named client's story and details.
+- If TARGET_CLIENT_NAME is not provided, identify distinct clients in transcript order and use only TARGET_CLIENT_POSITION.
+- If the requested client's details cannot be separated confidently, still return the best safe JSON you can, but add a concise warning telling the editor to verify the client separation.
+- Keep the same JSON shape and same V2 content quality as a normal single-client transcript.
+
+TRANSCRIPT:
+${transcript}`;
+})() }}

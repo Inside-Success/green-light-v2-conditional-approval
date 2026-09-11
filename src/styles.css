@@ -243,6 +243,10 @@ h2 {
   min-height: 34px;
 }
 
+.segmented-control.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 input,
 textarea {
   background: #0f0f0f;
@@ -777,6 +781,10 @@ textarea:focus {
   }
 
   .segmented-control {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .segmented-control.three {
     grid-template-columns: minmax(0, 1fr);
   }
 }

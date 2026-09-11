@@ -75,12 +75,34 @@ function readEditorSettings() {
   }
 }
 
+const SHOW_TYPE_LABELS = {
+  normal: "Normal",
+  nlceo: "Next Level CEO",
+  reality: "Reality Show",
+};
+const REALITY_SHOW_NAME_PATTERN =
+  /\b(business race|entrepreneurs? island|mansion of money|flipping for fortune|startup lockdown|millionaire match house|love or business)\b/i;
+const REALITY_GENERIC_PATTERN = /\breality\s+(?:show|series|tv|television|competition)\b/gi;
+
 function getTranscriptShowSignal(transcript) {
   const value = transcript.toLowerCase();
   if (/\bnext\s*level\s*ceo\b/.test(value) || /\bnlceo\b/.test(value)) {
     return "nlceo";
   }
+  if (REALITY_SHOW_NAME_PATTERN.test(value)) {
+    return "reality";
+  }
+  const genericRealityMentions = value.match(REALITY_GENERIC_PATTERN);
+  if (genericRealityMentions && genericRealityMentions.length >= 2) {
+    return "reality";
+  }
   return "normal";
+}
+
+function describeShowSignal(signal) {
+  if (signal === "nlceo") return "Next Level CEO";
+  if (signal === "reality") return "a reality show";
+  return "a normal show";
 }
 
 function StatusPill({ status }) {
@@ -172,7 +194,7 @@ export default function App() {
 
   const variantWarning =
     transcript.trim() && showSignal !== showType
-      ? `Transcript appears to mention ${showSignal === "nlceo" ? "Next Level CEO" : "a normal show"}, but the selected variant is ${showType === "nlceo" ? "Next Level CEO" : "Normal"}.`
+      ? `Transcript appears to mention ${describeShowSignal(showSignal)}, but the selected variant is ${SHOW_TYPE_LABELS[showType] || "Normal"}.`
       : "";
 
   useEffect(() => {
@@ -436,7 +458,7 @@ export default function App() {
             transcript,
             client_name: generationRequest.clientName,
             show_type: showType,
-            deadline_text: showType === "normal" ? deadlineText.trim() : "",
+            deadline_text: showType === "nlceo" ? "" : deadlineText.trim(),
             requested_output: "v2_conditional_casting_approval",
             multi_client: generationRequest.multiClient,
             multi_client_letter_count: generationRequest.letterCount,
@@ -879,7 +901,7 @@ export default function App() {
               <label className="field-label" htmlFor="show-type">
                 Show variant
               </label>
-              <div className="segmented-control" id="show-type">
+              <div className="segmented-control three" id="show-type">
                 <button
                   type="button"
                   className={showType === "normal" ? "selected" : ""}
@@ -893,6 +915,13 @@ export default function App() {
                   onClick={() => setShowType("nlceo")}
                 >
                   Next Level CEO
+                </button>
+                <button
+                  type="button"
+                  className={showType === "reality" ? "selected" : ""}
+                  onClick={() => setShowType("reality")}
+                >
+                  Reality Show
                 </button>
               </div>
             </div>
