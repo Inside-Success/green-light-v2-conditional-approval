@@ -26,7 +26,8 @@ const SESSION_STORAGE_KEY = "green-light-v2-dashboard-session-v1";
 const EDITOR_STORAGE_KEY = "green-light-v2-editor-settings-v1";
 const DEFAULT_EDITOR_NAME = "Adedokun Adedoyin";
 const EDITOR_OPTIONS = [DEFAULT_EDITOR_NAME, "Syed", "Daniel"];
-const POLL_INTERVAL_MS = 2500;
+const FIRST_POLL_DELAY_MS = 15000;
+const POLL_INTERVAL_MS = 5000;
 const MAX_GENERATION_WAIT_MS = 10 * 60 * 1000;
 
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -320,9 +321,11 @@ export default function App() {
   const pollGenerationJob = async (jobId, label) => {
     const startedAt = Date.now();
     let transientFailures = 0;
+    let isFirstPoll = true;
 
     while (Date.now() - startedAt < MAX_GENERATION_WAIT_MS) {
-      await wait(POLL_INTERVAL_MS);
+      await wait(isFirstPoll ? FIRST_POLL_DELAY_MS : POLL_INTERVAL_MS);
+      isFirstPoll = false;
 
       let response;
       let payload;
