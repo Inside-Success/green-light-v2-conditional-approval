@@ -128,7 +128,7 @@ function normalizeApprovalBody(value) {
 }
 
 function normalizeApprovalSections(text) {
-  if (isNextLevelCeo) {
+  if (isNextLevelCeo || isReality) {
     return text
       .replace(
         /\n*\s*^IMPORTANT\s*$\s*\n\s*Conditional approval expires(?:\s+on)?:\s*\n[^\n]*\n[\s\S]*?(?=\n\s*(Inside Success TV|Results vary\.|$))/im,
@@ -179,9 +179,10 @@ const dividerParagraph = " \n";
 const spacerAfterDivider = "\n";
 const allBodyText = formattedTitleText + dividerParagraph + spacerAfterDivider + finalBodyContent;
 
-const logoUrl = isNextLevelCeo ? NLCEO_HEADER_IMAGE_URL : DEFAULT_HEADER_IMAGE_URL;
+const useBannerFreeHeader = isNextLevelCeo || isReality;
+const logoUrl = useBannerFreeHeader ? NLCEO_HEADER_IMAGE_URL : DEFAULT_HEADER_IMAGE_URL;
 const logoWidth = 650;
-const logoHeight = isNextLevelCeo ? 111 : 150;
+const logoHeight = useBannerFreeHeader ? 111 : 150;
 const customerJourneyUrl = isNextLevelCeo
   ? NLCEO_CUSTOMER_JOURNEY_IMAGE_URL
   : DEFAULT_CUSTOMER_JOURNEY_IMAGE_URL;
