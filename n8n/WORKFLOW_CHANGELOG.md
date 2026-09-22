@@ -1,5 +1,18 @@
 # V2 Workflow Changelog
 
+## 2026-09-22 - Reality Show: remove WHAT PRODUCTION WILL BE LOOKING FOR section
+
+Production workflow: `Green Light V2 - Conditional Casting Approval` (`TfpAYWYtDpOLWo2M`). Reality variant only; Normal and NLCEO untouched (they never contained this section). Requested by Rudy in Slack on 2026-09-22 after Celia (Sales) asked why an already-approved applicant is told the team will still be evaluating a checklist.
+
+Backup before change: `n8n/backups/TfpAYWYtDpOLWo2M-before-reality-production-section-removal-2026-09-22T16-33-50Z.json`
+
+- `Build V2 Letter` (reality branch only): removed the whole section: the heading, "During the next stage of casting, our team will be evaluating:", the eight tick items, "Receiving conditional approval means our team sees enough potential to advance your application." and "Final casting decisions remain subject to further review, production requirements, background review, scheduling, agreements, and final approval from the production team." THE REAL QUESTION now flows directly into YOUR AUTHORITY ASSET. No other line changed.
+- `Refine V2 Draft JSON` system prompt: the heading is no longer listed among the fixed reality sections. Guardrail code unchanged.
+- Formatter left untouched: it still recognises the heading for styling, which is harmless and keeps pre-change drafts formatting correctly.
+- No dashboard change.
+
+Verification: offline harness (20 checks) shows Normal and NLCEO `Build V2 Letter` and formatter outputs byte-identical old vs new; reality new letter equals old letter minus exactly the removed section; formatter doc text likewise; deadline, header and journey-page behaviour from 2026-09-17 unchanged; the competitive-profile closing marker line used by save/refine is intact. Live after deploy: reality generate + save + refine, NLCEO and Normal generate + save, all successful (test docs in Syed's folder).
+
 ## 2026-09-17 - Reality Show: remove cohort deadline (match NLCEO)
 
 Production workflow: `Green Light V2 - Conditional Casting Approval` (`TfpAYWYtDpOLWo2M`). Reality variant only; Normal and NLCEO untouched. Requested by Adedokun in Slack; confirmed as "just the cohort deadline like NLCEO, contents stay different".
