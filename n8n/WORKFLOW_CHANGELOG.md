@@ -1,5 +1,23 @@
 # V2 Workflow Changelog
 
+## 2026-09-24 - Async job results moved to a Data Table (fixes lost completions under parallel use)
+
+Production workflow: `Green Light V2 - Conditional Casting Approval` (`TfpAYWYtDpOLWo2M`). All variants share this path; letter content, prompts, builders, formatter, save and refine are untouched.
+
+Backup before change: `n8n/backups/TfpAYWYtDpOLWo2M-before-async-datatable-2026-09-24T14-17-15Z.json`
+
+Problem: job status lived only in `$getWorkflowStaticData('global').v2_async_jobs`. n8n persists that whole object at the end of every execution, so when two generations overlapped, the one finishing second wrote back a stale copy in which the first job was still `processing`, erasing its completion. The dashboard then polled until its 10-minute timeout even though the letter had been generated. Editors running 5-8 tabs in parallel hit this roughly 1 in 6 jobs on 2026-09-24. Reproduced on demand: 6 simultaneous generations -> 5 stuck.
+
+Change:
+
+- New Data Table `Green Light V2 - async jobs` (`VHryMbxgGIxi1Zur`, project Moonis Haider): columns `job_id`, `status`, `payload` (JSON of the finished job record, ~9-17 KB), `created_ms`.
+- `Save V2 Job Row` (dataTable upsert on `job_id`) appended after `Store V2 Async Draft Result`; `Prune V2 Job Rows` (deleteRows where `created_ms` older than 24 h) after it. Both `continueRegularOutput`, so a Data Table failure can never fail a generation.
+- `Get V2 Job Row` (dataTable get by `job_id`, `alwaysOutputData`, `continueRegularOutput`) inserted between `V2 Async Status Webhook` and `Read V2 Async Job`.
+- `Read V2 Async Job` rewritten (`n8n/nodes/read-v2-async-job.js`): returns the Data Table row when it is `complete`/`failed`, otherwise falls back to the legacy static-data logic unchanged (queued/processing progress, "still starting", 10-minute failed marking). Static-data writes are kept as-is (belt and braces).
+- Dashboard (`src/App.jsx`): after 90 s of polling the status line explains the wait; the 10-minute timeout error now tells the editor what to do. No polling timing change.
+
+Verification: node configs validated (runtime profile); live workflow validated (0 errors, 0 warnings); live copy matches the patched JSON byte for byte; reader unit-tested against row hit, row miss, malformed row, Data Table error item, wrong job, missing id, stale static entry. Live: single generation -> row saved (17 KB payload), poll answered from the table, prune removed old rows; 6 simultaneous generations -> 0 stuck (baseline 5 of 6); status endpoint edge cases (unknown id, missing id) unchanged.
+
 ## 2026-09-22 - Reality Show: remove WHAT PRODUCTION WILL BE LOOKING FOR section
 
 Production workflow: `Green Light V2 - Conditional Casting Approval` (`TfpAYWYtDpOLWo2M`). Reality variant only; Normal and NLCEO untouched (they never contained this section). Requested by Rudy in Slack on 2026-09-22 after Celia (Sales) asked why an already-approved applicant is told the team will still be evaluating a checklist.

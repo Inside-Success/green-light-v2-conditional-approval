@@ -29,6 +29,7 @@ const EDITOR_OPTIONS = [DEFAULT_EDITOR_NAME, "Syed", "Daniel"];
 const FIRST_POLL_DELAY_MS = 15000;
 const POLL_INTERVAL_MS = 5000;
 const MAX_GENERATION_WAIT_MS = 10 * 60 * 1000;
+const SLOW_GENERATION_NOTICE_MS = 90 * 1000;
 
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -374,12 +375,23 @@ export default function App() {
         );
       }
 
+      const elapsedMs = Date.now() - startedAt;
+      if (elapsedMs > SLOW_GENERATION_NOTICE_MS) {
+        const elapsedSeconds = Math.round(elapsedMs / 1000);
+        setGenerationStatus(
+          `${label}: still generating after ${elapsedSeconds}s. This is longer than usual (most drafts take under a minute). Keep this tab open; if nothing arrives within 10 minutes the dashboard will stop and you can generate again.`,
+        );
+        continue;
+      }
+
       setGenerationStatus(
         `${label}: ${payload?.progress || "Still generating with Sonnet 4.6..."}`,
       );
     }
 
-    throw new Error("V2 generation timed out before the draft was ready.");
+    throw new Error(
+      `${label}: no draft arrived within 10 minutes. The generation may have finished in the background but its result could not be retrieved. Please generate this letter again; if it happens repeatedly, let Syed know.`,
+    );
   };
 
   const requestDraftPayload = async (requestBody, label) => {
