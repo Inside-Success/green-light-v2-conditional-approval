@@ -1,5 +1,9 @@
 # V2 Workflow Changelog
 
+## 2026-10-01 - Editor change: Sheena replaces Daniel
+
+Dashboard only (`src/App.jsx`): `EDITOR_OPTIONS` now lists Adedokun Adedoyin (default), Syed, Sheena. No n8n change: folder routing is by editor name against subfolders of `Client's PDFs Green Light Letter`. A `Sheena` subfolder was created in Drive before deploying so saves use the proven lookup path. Daniel's folder (200+ letters, in active use until 2026-10-01) was intentionally left untouched; letters were not moved. Browsers that remembered "Daniel" fall back to the default editor (Adedokun) on next load and must select Sheena once.
+
 ## 2026-09-24 - Async job results moved to a Data Table (fixes lost completions under parallel use)
 
 Production workflow: `Green Light V2 - Conditional Casting Approval` (`TfpAYWYtDpOLWo2M`). All variants share this path; letter content, prompts, builders, formatter, save and refine are untouched.
