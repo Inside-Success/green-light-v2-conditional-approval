@@ -10,7 +10,7 @@
         -440
       ],
       "parameters": {
-        "jsCode": "// Check V2 Branded Length - runs after Extract V2 Branded Profile JSON (Mansion / Island only).\n// Measures the four Competitive Profile paragraphs. If any is over CONDENSE_MAX_WORDS or the four\n// together exceed CONDENSE_MAX_TOTAL, the item is routed to the Condense agent (an AI rewrite that\n// keeps every fact); otherwise it goes straight to Build V2 Letter. Never blocks: on any parse problem\n// the item passes through unchanged.\nconst CONDENSE_MAX_WORDS = 30;\nconst CONDENSE_MAX_TOTAL = 120;\nconst CONDENSE_TARGET = '30 to 45 words (2 to 3 short sentences) per paragraph, and no more than 170 words across the four';\n\nconst generated = $input.first().json || {};\n\nfunction parseJsonFromAi(value) {\n  const raw = String(value || '').trim();\n  if (!raw) throw new Error('AI returned an empty response.');\n  try { return JSON.parse(raw); } catch {}\n  const fenced = raw.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);\n  if (fenced) {\n    try { return JSON.parse(fenced[1]); } catch {}\n  }\n  const start = raw.indexOf('{');\n  const end = raw.lastIndexOf('}');\n  if (start !== -1 && end !== -1 && end > start) return JSON.parse(raw.slice(start, end + 1));\n  throw new Error('AI response was not valid JSON.');\n}\nconst countWords = (value) => String(value || '').split(/\\s+/).filter(Boolean).length;\nconst FIELDS = {\n  business_experience: ['business_experience', 'businessExperience'],\n  competitive_edge: ['competitive_edge', 'competitiveEdge'],\n  personality: ['personality', 'personality_profile'],\n  wildcard: ['wildcard', 'the_wildcard', 'wild_card', 'wildCard'],\n};\n\nlet needsCondense = false;\nconst counts = {};\nlet total = 0;\nlet condensePrompt = '';\ntry {\n  const aiRaw = generated.output || generated.text || generated.response || generated.message || '';\n  const parsed = typeof aiRaw === 'object' ? aiRaw : parseJsonFromAi(aiRaw);\n  const paragraphs = {};\n  for (const [field, keys] of Object.entries(FIELDS)) {\n    const key = keys.find((k) => typeof parsed[k] === 'string' && parsed[k].trim());\n    paragraphs[field] = key ? parsed[key].trim() : '';\n    counts[field] = countWords(paragraphs[field]);\n    total += counts[field];\n  }\n  needsCondense = Object.values(counts).some((n) => n > CONDENSE_MAX_WORDS) || total > CONDENSE_MAX_TOTAL;\n  if (needsCondense) {\n    condensePrompt = [\n      `TARGET: ${CONDENSE_TARGET}.`,\n      '',\n      `BUSINESS_EXPERIENCE (${counts.business_experience} words):`,\n      paragraphs.business_experience,\n      '',\n      `COMPETITIVE_EDGE (${counts.competitive_edge} words):`,\n      paragraphs.competitive_edge,\n      '',\n      `PERSONALITY (${counts.personality} words):`,\n      paragraphs.personality,\n      '',\n      `WILDCARD (${counts.wildcard} words):`,\n      paragraphs.wildcard,\n    ].join('\\n');\n  }\n} catch (error) {\n  needsCondense = false;\n}\n\nreturn [{\n  json: {\n    ...generated,\n    branded_word_counts: counts,\n    branded_total_words: total,\n    branded_needs_condense: needsCondense,\n    condense_prompt: condensePrompt,\n  },\n}];\n"
+        "jsCode": "<see n8n/nodes/check-v2-branded-length.js>"
       }
     },
     {
@@ -61,7 +61,7 @@
         "text": "={{ $json.condense_prompt }}",
         "needsFallback": true,
         "options": {
-          "systemMessage": "<see condense-v2-branded-profile-system-prompt.txt>"
+          "systemMessage": "<see n8n/nodes/condense-v2-branded-profile-system-prompt.txt>"
         }
       }
     },
@@ -75,7 +75,7 @@
         -600
       ],
       "parameters": {
-        "jsCode": "<see merge-v2-condensed-profile.js>"
+        "jsCode": "<see n8n/nodes/merge-v2-condensed-profile.js>"
       }
     }
   ],
@@ -135,7 +135,7 @@
       "main": [
         [
           {
-            "node": "Build V2 Letter",
+            "node": "Check V2 Branded Length",
             "type": "main",
             "index": 0
           }

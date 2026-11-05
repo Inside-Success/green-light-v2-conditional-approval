@@ -5,9 +5,11 @@
 // the item passes through unchanged.
 const CONDENSE_MAX_WORDS = 50;
 const CONDENSE_MAX_TOTAL = 195;
-const CONDENSE_TARGET = '30 to 45 words (2 to 3 short sentences) per paragraph, and no more than 170 words across the four';
+const CONDENSE_TARGET = '30 to 42 words (2 to 3 short sentences) per paragraph, never more than 45, and no more than 170 words across the four';
+const CONDENSE_MAX_PASSES = 2; // the Merge node loops back here; stop after two condense passes
 
 const generated = $input.first().json || {};
+const passes = Number(generated.branded_condense_passes || 0);
 
 function parseJsonFromAi(value) {
   const raw = String(value || '').trim();
@@ -44,7 +46,7 @@ try {
     counts[field] = countWords(paragraphs[field]);
     total += counts[field];
   }
-  needsCondense = Object.values(counts).some((n) => n > CONDENSE_MAX_WORDS) || total > CONDENSE_MAX_TOTAL;
+  needsCondense = passes < CONDENSE_MAX_PASSES && (Object.values(counts).some((n) => n > CONDENSE_MAX_WORDS) || total > CONDENSE_MAX_TOTAL);
   if (needsCondense) {
     condensePrompt = [
       `TARGET: ${CONDENSE_TARGET}.`,
@@ -72,6 +74,7 @@ return [{
     branded_word_counts: counts,
     branded_total_words: total,
     branded_needs_condense: needsCondense,
+    branded_condense_passes: passes,
     condense_prompt: condensePrompt,
   },
 }];

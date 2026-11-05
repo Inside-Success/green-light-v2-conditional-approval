@@ -1,6 +1,6 @@
 // Merge V2 Condensed Profile - takes the Condense agent's four rewritten paragraphs and places them
 // into the original extraction JSON (names, warnings and every other field untouched), then hands the
-// result to Build V2 Letter in the same shape the extractor produces. Any problem with the condensed
+// result back to Check V2 Branded Length (which re-measures and may run one more pass) in the same shape the extractor produces. Any problem with the condensed
 // output means that paragraph keeps its original text. Never blocks.
 const check = $('Check V2 Branded Length').first().json || {};
 const condensedItem = $input.first().json || {};
@@ -54,6 +54,6 @@ try {
 }
 
 if (!merged) {
-  return [{ json: { output: typeof originalRaw === 'object' ? JSON.stringify(originalRaw) : String(originalRaw), branded_condensed: false } }];
+  return [{ json: { output: typeof originalRaw === 'object' ? JSON.stringify(originalRaw) : String(originalRaw), branded_condensed: false, branded_condense_passes: Number(check.branded_condense_passes || 0) + 1 } }];
 }
-return [{ json: { output: JSON.stringify(merged), branded_condensed: replaced.length > 0, branded_condensed_fields: replaced } }];
+return [{ json: { output: JSON.stringify(merged), branded_condensed: replaced.length > 0, branded_condensed_fields: replaced, branded_condense_passes: Number(check.branded_condense_passes || 0) + 1 } }];
