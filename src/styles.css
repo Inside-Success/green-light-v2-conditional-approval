@@ -247,11 +247,16 @@ h2 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.controls-grid .show-variant-field {
+  grid-column: 1 / -1;
+}
+
 .segmented-control.five {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .segmented-control.five button {
+  font-size: 13px;
   padding-left: 6px;
   padding-right: 6px;
   white-space: normal;

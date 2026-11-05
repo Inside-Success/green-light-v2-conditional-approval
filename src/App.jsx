@@ -930,7 +930,7 @@ export default function App() {
           </div>
 
           <div className="controls-grid">
-            <div>
+            <div className="show-variant-field">
               <label className="field-label" htmlFor="show-type">
                 Show variant
               </label>
