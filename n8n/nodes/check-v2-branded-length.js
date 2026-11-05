@@ -4,7 +4,7 @@
 // keeps every fact); otherwise it goes straight to Build V2 Letter. Never blocks: on any parse problem
 // the item passes through unchanged.
 const CONDENSE_MAX_WORDS = 50;
-const CONDENSE_MAX_TOTAL = 180;
+const CONDENSE_MAX_TOTAL = 195;
 const CONDENSE_TARGET = '30 to 45 words (2 to 3 short sentences) per paragraph, and no more than 170 words across the four';
 
 const generated = $input.first().json || {};
