@@ -1,5 +1,24 @@
 # V2 Workflow Changelog
 
+## 2026-11-05 - Mansion of Money and Entrepreneurs Island variants
+
+Production workflow: `Green Light V2 - Conditional Casting Approval` (`TfpAYWYtDpOLWo2M`). Two new show types `mansion` and `island`; Normal, NLCEO and Reality untouched and proven byte-identical (harness: Clean, Build, Save, Formatter, Refine payload, Guardrails, old live code vs new).
+
+Backup before change: `n8n/backups/TfpAYWYtDpOLWo2M-before-mansion-island-2026-11-05T17-32-47Z.json`
+
+Source of truth: Rudy's Loom (2026-11-05) and Boris/Pankaj's design docs (Mansion `1w7HSMsVKYPPI2sTtHFsF0ikeONnAWrx6dIbHvZ8JNeg`, Island `12TgstBKhHdjPEPZ3i2dhwaoTMfI_AERYTZhiXGVpTGA`). Syed's decisions: reproduce the docs exactly (ISTV body mentions and resource links included), gold NEXT STEP heading on Mansion, blue MEDIA PACK heading on Island, header banner paired with the footer on Island, 12-tile media pack grid, file names `<Show> TV x Name`, ~50-word paragraphs.
+
+Workflow changes:
+
+- New IF `V2 Branded Reality?` (show_type mansion or island) between `Clean V2 Transcript` and `V2 Reality Show?`; true branch feeds new agent `Extract V2 Branded Profile JSON` (clone of the reality agent, same Sonnet 4.6 primary / Haiku 4.5 fallback models, prompt with a 35-55 word, 60 max, per-paragraph rule). Node definitions in `n8n/nodes/branded-reality-nodes.json`.
+- `Clean V2 Transcript`, `Prepare Edited V2 Save Payload`, `Prepare V2 Refine Payload`: show_type mapping gains mansion/island (checked before reality/nl). Save and guardrails treat mansion/island as the reality family (lenient claim rules, four editable slots, dash normalisation) and build `<Show> TV x Name` titles.
+- `Build V2 Letter`: new branded branch (placed before the reality branch) producing the trimmed letter; paragraphs over 70 words add a review warning, never a block.
+- `Prepare V2 Google Doc Body`: self-contained branded branch that returns early: full-width show header, footer with the show website, brand fonts/colours, 5 page breaks, 4 inline graphics (one-story diagram, media pack grid, co-production table, headlines) inserted after all styling in descending index order, resource links, grey centred disclaimer, no NEXT STEP black box. Blank spacer lines before page-break headings are dropped so no empty pages appear.
+- `Refine V2 Draft JSON` prompt: one paragraph describing the branded letters (same four slots, everything else fixed).
+- Dashboard: five variant buttons on a full-width row (three columns under 900px, stacked on phones), transcript signals for Mansion/Island, no deadline for the branded shows.
+
+Verification: harness 95 checks (byte-identity for the three live variants; structure, fonts, images, page breaks, ordering, titles, refine slot isolation and word-cap warning for the new ones); live Mansion and Island generate (17 s, paragraphs 35-48 words), save and refine; live Normal/NLCEO/Reality generate and save; rendered docs reviewed page by page against the design docs; dashboard screenshots at desktop and phone width. First render showed the one-story graphic pushing its three closing lines onto their own page and an empty page after the co-production table; fixed (page-break ordering and spacer removal) and re-verified.
+
 ## 2026-10-01 - Editor change: Sheena replaces Daniel
 
 Dashboard only (`src/App.jsx`): `EDITOR_OPTIONS` now lists Adedokun Adedoyin (default), Syed, Sheena. No n8n change: folder routing is by editor name against subfolders of `Client's PDFs Green Light Letter`. A `Sheena` subfolder was created in Drive before deploying so saves use the proven lookup path. Daniel's folder (200+ letters, in active use until 2026-10-01) was intentionally left untouched; letters were not moved. Browsers that remembered "Daniel" fall back to the default editor (Adedokun) on next load and must select Sheena once.

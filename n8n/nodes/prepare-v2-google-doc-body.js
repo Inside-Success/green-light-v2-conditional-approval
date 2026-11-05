@@ -223,30 +223,35 @@ if (showType === "mansion" || showType === "island") {
 
   const rawLines = normalizeText(built.letter_text || built.preview || "").split("\n").map((line) => line.replace(/[ \t]+$/g, ""));
   const congratsAt = rawLines.findIndex((line) => /^CONGRATULATIONS!?$/i.test(line.trim()));
-  let letterLines = (congratsAt >= 0 ? rawLines.slice(congratsAt) : rawLines.slice(4)).map((line) => line.trim());
-  while (letterLines.length && (letterLines[letterLines.length - 1] === "" || letterLines[letterLines.length - 1].toLowerCase() === brand.site || /^Results vary\./i.test(letterLines[letterLines.length - 1]))) {
-    letterLines.pop();
+  let brandedLines = (congratsAt >= 0 ? rawLines.slice(congratsAt) : rawLines.slice(4)).map((line) => line.trim());
+  while (brandedLines.length && (brandedLines[brandedLines.length - 1] === "" || brandedLines[brandedLines.length - 1].toLowerCase() === brand.site || /^Results vary\./i.test(brandedLines[brandedLines.length - 1]))) {
+    brandedLines.pop();
   }
-  const entries = [];
-  for (const line of letterLines) {
-    const text = line === "CONGRATULATIONS" ? "CONGRATULATIONS!" : line === "NEXT STEP" ? "NEXT STEP ➡️" : line;
-    entries.push({ text, kind: "text" });
-    const imageKey = IMAGE_AFTER[text];
-    if (imageKey) entries.push({ text: "", kind: "image", image: imageKey, pageBreakBefore: imageKey === "fame" });
+  const brandedEntries = [];
+  for (const rawLine of brandedLines) {
+    const entryText = rawLine === "CONGRATULATIONS" ? "CONGRATULATIONS!" : rawLine === "NEXT STEP" ? "NEXT STEP ➡️" : rawLine;
+    brandedEntries.push({ text: entryText, kind: "text" });
+    const imageKey = IMAGE_AFTER[entryText];
+    if (imageKey) brandedEntries.push({ text: "", kind: "image", image: imageKey });
   }
-  entries.push({ text: "", kind: "text" });
-  entries.push({ text: DISCLAIMER, kind: "disclaimer" });
-  const bodyContent = entries.map((entry) => entry.text).join("\n");
+  // Drop blank spacer lines that sit right before a page-break heading: they add nothing and, after a
+  // full-page image, they can spill onto a fresh page and leave it empty.
+  for (let i = brandedEntries.length - 2; i >= 0; i -= 1) {
+    if (brandedEntries[i].kind === "text" && brandedEntries[i].text === "" && PAGE_BREAK_BEFORE.has(brandedEntries[i + 1].text)) brandedEntries.splice(i, 1);
+  }
+  brandedEntries.push({ text: "", kind: "text" });
+  brandedEntries.push({ text: DISCLAIMER, kind: "disclaimer" });
+  const bodyContent = brandedEntries.map((entry) => entry.text).join("\n");
   if (bodyContent.length < 500) throw new Error("Edited V2 letter body is too short.");
 
-  const line1 = brand.title;
-  const line2 = "CONDITIONAL CASTING APPROVAL";
-  const line3 = `Cast Name: ${guestName}`;
-  const titleText = `${line1}\n${line2}\n${line3}\n`;
+  const brandedLine1 = brand.title;
+  const brandedLine2 = "CONDITIONAL CASTING APPROVAL";
+  const brandedLine3 = `Cast Name: ${guestName}`;
+  const titleText = `${brandedLine1}\n${brandedLine2}\n${brandedLine3}\n`;
   const allText = titleText + " \n" + "\n" + bodyContent;
 
-  const requests = [];
-  requests.push({
+  const brandedRequests = [];
+  brandedRequests.push({
     updateDocumentStyle: {
       documentStyle: {
         pageSize: { width: { magnitude: 612, unit: "PT" }, height: { magnitude: 792, unit: "PT" } },
@@ -262,14 +267,14 @@ if (showType === "mansion" || showType === "island") {
   });
   const headerUri = `${assetBase}/header.jpg`;
   if (headerId) {
-    requests.push({
+    brandedRequests.push({
       insertInlineImage: {
         location: { segmentId: headerId, index: 0 },
         uri: headerUri,
         objectSize: { width: { magnitude: 612, unit: "PT" }, height: { magnitude: 122, unit: "PT" } },
       },
     });
-    requests.push({
+    brandedRequests.push({
       updateParagraphStyle: {
         range: { segmentId: headerId, startIndex: 0, endIndex: 1 },
         paragraphStyle: { alignment: "CENTER", spaceAbove: { magnitude: 0, unit: "PT" }, spaceBelow: { magnitude: 0, unit: "PT" }, lineSpacing: 100 },
@@ -279,15 +284,15 @@ if (showType === "mansion" || showType === "island") {
   }
   if (footerId) {
     const footerText = `${brand.site}\n`;
-    requests.push({ insertText: { location: { segmentId: footerId, index: 0 }, text: footerText } });
-    requests.push({
+    brandedRequests.push({ insertText: { location: { segmentId: footerId, index: 0 }, text: footerText } });
+    brandedRequests.push({
       updateTextStyle: {
         range: { segmentId: footerId, startIndex: 0, endIndex: footerText.length },
         textStyle: { bold: false, fontSize: { magnitude: 10, unit: "PT" }, weightedFontFamily: { fontFamily: brand.bodyFont, weight: 400 }, foregroundColor: rgb("555555") },
         fields: "bold,fontSize,weightedFontFamily,foregroundColor",
       },
     });
-    requests.push({
+    brandedRequests.push({
       updateParagraphStyle: {
         range: { segmentId: footerId, startIndex: 0, endIndex: footerText.length },
         paragraphStyle: { alignment: "CENTER", lineSpacing: 100, spaceAbove: { magnitude: 0, unit: "PT" }, spaceBelow: { magnitude: 6, unit: "PT" } },
@@ -296,89 +301,90 @@ if (showType === "mansion" || showType === "island") {
     });
   }
 
-  requests.push({ insertText: { location: { index: 1 }, text: allText } });
+  brandedRequests.push({ insertText: { location: { index: 1 }, text: allText } });
 
-  const text = (s, e, style, fields) => { if (e > s) requests.push({ updateTextStyle: { range: { startIndex: s, endIndex: e }, textStyle: style, fields } }); };
-  const para = (s, e, style, fields) => { if (e > s) requests.push({ updateParagraphStyle: { range: { startIndex: s, endIndex: e }, paragraphStyle: style, fields } }); };
-  const font = (s, e, family, size, weight, extra = {}) => text(s, e, { bold: weight >= 700, fontSize: { magnitude: size, unit: "PT" }, weightedFontFamily: { fontFamily: family, weight }, ...extra }, "bold,fontSize,weightedFontFamily" + Object.keys(extra).map((k) => "," + k).join(""));
-  const INDENT = { indentStart: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" }, indentFirstLine: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" }, indentEnd: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" } };
-  const BULLET = { indentStart: { magnitude: BULLET_INDENT_START, unit: "PT" }, indentFirstLine: { magnitude: BULLET_INDENT_FIRST, unit: "PT" }, indentEnd: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" } };
+  const styleText = (s, e, style, fields) => { if (e > s) brandedRequests.push({ updateTextStyle: { range: { startIndex: s, endIndex: e }, textStyle: style, fields } }); };
+  const stylePara = (s, e, style, fields) => { if (e > s) brandedRequests.push({ updateParagraphStyle: { range: { startIndex: s, endIndex: e }, paragraphStyle: style, fields } }); };
+  const styleFont = (s, e, family, size, weight, extra = {}) => styleText(s, e, { bold: weight >= 700, fontSize: { magnitude: size, unit: "PT" }, weightedFontFamily: { fontFamily: family, weight }, ...extra }, "bold,fontSize,weightedFontFamily" + Object.keys(extra).map((k) => "," + k).join(""));
+  const BRAND_INDENT = { indentStart: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" }, indentFirstLine: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" }, indentEnd: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" } };
+  const BRAND_BULLET = { indentStart: { magnitude: BULLET_INDENT_START, unit: "PT" }, indentFirstLine: { magnitude: BULLET_INDENT_FIRST, unit: "PT" }, indentEnd: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" } };
   const pt = (n) => ({ magnitude: n, unit: "PT" });
 
-  const t1Start = 1, t1End = t1Start + line1.length + 1;
-  const t2Start = t1End, t2End = t2Start + line2.length + 1;
-  const t3Start = t2End, t3End = t3Start + line3.length + 1;
-  const dividerStart = t3End, dividerEnd = dividerStart + 2;
-  const contentStart = dividerEnd + 1;
-  const contentEnd = contentStart + bodyContent.length;
+  const bt1Start = 1, bt1End = bt1Start + brandedLine1.length + 1;
+  const bt2Start = bt1End, bt2End = bt2Start + brandedLine2.length + 1;
+  const bt3Start = bt2End, bt3End = bt3Start + brandedLine3.length + 1;
+  const brandedDividerStart = bt3End, brandedDividerEnd = brandedDividerStart + 2;
+  const bContentStart = brandedDividerEnd + 1;
+  const bContentEnd = bContentStart + bodyContent.length;
 
-  font(t1Start, t1Start + line1.length, brand.headFont, brand.titleSize, 400, { foregroundColor: brand.headColor });
-  para(t1Start, t1End, { alignment: "CENTER", spaceAbove: pt(6), spaceBelow: pt(2), ...INDENT }, "alignment,spaceAbove,spaceBelow,indentStart,indentFirstLine,indentEnd");
-  font(t2Start, t2Start + line2.length, brand.bodyFont, 14, 700, { underline: true, foregroundColor: brand.subtitleColor });
-  para(t2Start, t2End, { alignment: "CENTER", spaceAbove: pt(0), spaceBelow: pt(16), ...INDENT }, "alignment,spaceAbove,spaceBelow,indentStart,indentFirstLine,indentEnd");
-  font(t3Start, t3Start + line3.length, brand.bodyFont, 14, 400);
-  font(t3Start, t3Start + "Cast Name:".length, brand.bodyFont, 14, 700);
-  para(t3Start, t3End, { alignment: "START", spaceAbove: pt(0), spaceBelow: pt(14), ...INDENT }, "alignment,spaceAbove,spaceBelow,indentStart,indentFirstLine,indentEnd");
-  para(dividerStart, dividerEnd, { ...INDENT, spaceAbove: pt(0), spaceBelow: pt(8), borderBottom: { color: rgb("1A1A1A"), width: pt(1), padding: pt(0), dashStyle: "SOLID" } }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,borderBottom");
-  text(dividerStart, dividerEnd, { fontSize: pt(1) }, "fontSize");
+  styleFont(bt1Start, bt1Start + brandedLine1.length, brand.headFont, brand.titleSize, 400, { foregroundColor: brand.headColor });
+  stylePara(bt1Start, bt1End, { alignment: "CENTER", spaceAbove: pt(6), spaceBelow: pt(2), ...BRAND_INDENT }, "alignment,spaceAbove,spaceBelow,indentStart,indentFirstLine,indentEnd");
+  styleFont(bt2Start, bt2Start + brandedLine2.length, brand.bodyFont, 14, 700, { underline: true, foregroundColor: brand.subtitleColor });
+  stylePara(bt2Start, bt2End, { alignment: "CENTER", spaceAbove: pt(0), spaceBelow: pt(16), ...BRAND_INDENT }, "alignment,spaceAbove,spaceBelow,indentStart,indentFirstLine,indentEnd");
+  styleFont(bt3Start, bt3Start + brandedLine3.length, brand.bodyFont, 14, 400);
+  styleFont(bt3Start, bt3Start + "Cast Name:".length, brand.bodyFont, 14, 700);
+  stylePara(bt3Start, bt3End, { alignment: "START", spaceAbove: pt(0), spaceBelow: pt(14), ...BRAND_INDENT }, "alignment,spaceAbove,spaceBelow,indentStart,indentFirstLine,indentEnd");
+  stylePara(brandedDividerStart, brandedDividerEnd, { ...BRAND_INDENT, spaceAbove: pt(0), spaceBelow: pt(8), borderBottom: { color: rgb("1A1A1A"), width: pt(1), padding: pt(0), dashStyle: "SOLID" } }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,borderBottom");
+  styleText(brandedDividerStart, brandedDividerEnd, { fontSize: pt(1) }, "fontSize");
 
-  if (contentEnd > contentStart) {
-    text(contentStart, contentEnd, { fontSize: pt(FONT_BODY_SIZE), weightedFontFamily: { fontFamily: brand.bodyFont, weight: 400 }, foregroundColor: rgb("0A0A0A") }, "fontSize,weightedFontFamily,foregroundColor");
-    para(contentStart, contentEnd, { alignment: "START", ...INDENT, lineSpacing: LINE_SPACING, spaceAbove: pt(0), spaceBelow: pt(6) }, "alignment,indentStart,indentFirstLine,indentEnd,lineSpacing,spaceAbove,spaceBelow");
+  if (bContentEnd > bContentStart) {
+    styleText(bContentStart, bContentEnd, { fontSize: pt(FONT_BODY_SIZE), weightedFontFamily: { fontFamily: brand.bodyFont, weight: 400 }, foregroundColor: rgb("0A0A0A") }, "fontSize,weightedFontFamily,foregroundColor");
+    stylePara(bContentStart, bContentEnd, { alignment: "START", ...BRAND_INDENT, lineSpacing: LINE_SPACING, spaceAbove: pt(0), spaceBelow: pt(6) }, "alignment,indentStart,indentFirstLine,indentEnd,lineSpacing,spaceAbove,spaceBelow");
   }
 
-  const inserts = [];
-  let idx = contentStart;
-  for (const entry of entries) {
-    const line = entry.text;
-    const len = line.length;
-    const paraEnd = idx + len + 1;
+  const brandedInserts = [];
+  let cursor = bContentStart;
+  for (const entry of brandedEntries) {
+    const bLine = entry.text;
+    const bLen = bLine.length;
+    const bParaEnd = cursor + bLen + 1;
     if (entry.kind === "image") {
-      para(idx, paraEnd, { alignment: "CENTER", indentStart: pt(0), indentFirstLine: pt(0), indentEnd: pt(0), spaceAbove: pt(10), spaceBelow: pt(10) }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
-      inserts.push({ index: idx, kind: "image", image: IMAGES[entry.image] });
-      if (entry.pageBreakBefore) inserts.push({ index: idx, kind: "pageBreak" });
+      stylePara(cursor, bParaEnd, { alignment: "CENTER", indentStart: pt(0), indentFirstLine: pt(0), indentEnd: pt(0), spaceAbove: pt(10), spaceBelow: pt(10) }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
+      brandedInserts.push({ index: cursor, kind: "image", image: IMAGES[entry.image] });
     } else if (entry.kind === "disclaimer") {
-      font(idx, idx + len, brand.bodyFont, 9, 400, { foregroundColor: GREY });
-      para(idx, paraEnd, { alignment: "CENTER", indentStart: pt(96), indentFirstLine: pt(96), indentEnd: pt(96), spaceAbove: pt(18), spaceBelow: pt(10), lineSpacing: 105 }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,lineSpacing");
-    } else if (len === 0) {
-      // blank spacer line
-    } else if (MAJOR.has(line)) {
-      const isHeadlines = line.startsWith("OUR REALITY SHOWS ARE HIGHLY");
-      font(idx, idx + len, brand.headFont, isHeadlines ? 22 : 22, 400, { foregroundColor: brand.headColor });
-      para(idx, paraEnd, { alignment: isHeadlines ? "CENTER" : "START", ...INDENT, spaceAbove: pt(16), spaceBelow: pt(8), keepWithNext: true }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
-      if (PAGE_BREAK_BEFORE.has(line)) inserts.push({ index: idx, kind: "pageBreak" });
-    } else if (SUB.has(line)) {
-      font(idx, idx + len, brand.subFont, brand.subSize, brand.subBold ? 700 : 400, { foregroundColor: brand.subColor });
-      para(idx, paraEnd, { ...INDENT, spaceAbove: pt(12), spaceBelow: pt(4), keepWithNext: true }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
-    } else if (/^✅/.test(line)) {
-      if (BOLD_CHECKS.has(line)) font(idx, idx + len, brand.bodyFont, FONT_BODY_SIZE, 700);
-      para(idx, paraEnd, { ...BULLET, spaceAbove: pt(0), spaceBelow: pt(4) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
-    } else if (/^•/.test(line)) {
-      para(idx, paraEnd, { ...BULLET, spaceAbove: pt(0), spaceBelow: pt(3) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
-    } else if (/^(1\. WATCH ONE EPISODE:|2\. REVIEW THE MEDIA KIT:)/.test(line)) {
-      const labelLen = line.indexOf(":") + 1;
-      font(idx, idx + labelLen, brand.headFont, 13, brand.subBold ? 700 : 400, { foregroundColor: brand.subColor });
-      for (const link of [{ label: RUDY_EPISODE_LINK_TEXT, url: RUDY_EPISODE_URL }, { label: MEDIA_PACK_LINK_TEXT, url: MEDIA_PACK_URL }]) {
-        const offset = line.indexOf(link.label);
-        if (offset === -1) continue;
-        text(idx + offset, idx + offset + link.label.length, { link: { url: link.url }, underline: true, bold: true, foregroundColor: LINK_COLOR }, "link,underline,bold,foregroundColor");
+      styleFont(cursor, cursor + bLen, brand.bodyFont, 9, 400, { foregroundColor: GREY });
+      stylePara(cursor, bParaEnd, { alignment: "CENTER", indentStart: pt(96), indentFirstLine: pt(96), indentEnd: pt(96), spaceAbove: pt(18), spaceBelow: pt(10), lineSpacing: 105 }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,lineSpacing");
+    } else if (bLen === 0) {
+      // blank spacer bLine
+    } else if (MAJOR.has(bLine)) {
+      const isHeadlines = bLine.startsWith("OUR REALITY SHOWS ARE HIGHLY");
+      styleFont(cursor, cursor + bLen, brand.headFont, isHeadlines ? 22 : 22, 400, { foregroundColor: brand.headColor });
+      stylePara(cursor, bParaEnd, { alignment: isHeadlines ? "CENTER" : "START", ...BRAND_INDENT, spaceAbove: pt(16), spaceBelow: pt(8), keepWithNext: true }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
+      if (PAGE_BREAK_BEFORE.has(bLine)) brandedInserts.push({ index: cursor, kind: "pageBreak" });
+    } else if (SUB.has(bLine)) {
+      styleFont(cursor, cursor + bLen, brand.subFont, brand.subSize, brand.subBold ? 700 : 400, { foregroundColor: brand.subColor });
+      stylePara(cursor, bParaEnd, { ...BRAND_INDENT, spaceAbove: pt(12), spaceBelow: pt(4), keepWithNext: true }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
+    } else if (/^✅/.test(bLine)) {
+      if (BOLD_CHECKS.has(bLine)) styleFont(cursor, cursor + bLen, brand.bodyFont, FONT_BODY_SIZE, 700);
+      stylePara(cursor, bParaEnd, { ...BRAND_BULLET, spaceAbove: pt(0), spaceBelow: pt(4) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
+    } else if (/^•/.test(bLine)) {
+      stylePara(cursor, bParaEnd, { ...BRAND_BULLET, spaceAbove: pt(0), spaceBelow: pt(3) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
+    } else if (/^(1\. WATCH ONE EPISODE:|2\. REVIEW THE MEDIA KIT:)/.test(bLine)) {
+      const labelLen = bLine.indexOf(":") + 1;
+      styleFont(cursor, cursor + labelLen, brand.headFont, 13, brand.subBold ? 700 : 400, { foregroundColor: brand.subColor });
+      for (const resLink of [{ label: RUDY_EPISODE_LINK_TEXT, url: RUDY_EPISODE_URL }, { label: MEDIA_PACK_LINK_TEXT, url: MEDIA_PACK_URL }]) {
+        const bOffset = bLine.indexOf(resLink.label);
+        if (bOffset === -1) continue;
+        styleText(cursor + bOffset, cursor + bOffset + resLink.label.length, { link: { url: resLink.url }, underline: true, bold: true, foregroundColor: LINK_COLOR }, "link,underline,bold,foregroundColor");
       }
-      para(idx, paraEnd, { ...INDENT, spaceAbove: pt(6), spaceBelow: pt(6) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
-    } else if (/^Before your second call/.test(line) || /^(It has the potential to become:|These may include:|During your next call we will discuss:)$/.test(line)) {
-      font(idx, idx + len, brand.bodyFont, FONT_BODY_SIZE, 700);
-      para(idx, paraEnd, { ...INDENT, spaceAbove: pt(8), spaceBelow: pt(4) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
-    } else if (/^These are some of the qualities/.test(line)) {
-      font(idx, idx + len, brand.bodyFont, FONT_BODY_SIZE, 700);
+      stylePara(cursor, bParaEnd, { ...BRAND_INDENT, spaceAbove: pt(6), spaceBelow: pt(6) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
+    } else if (/^Before your second call/.test(bLine) || /^(It has the potential to become:|These may include:|During your next call we will discuss:)$/.test(bLine)) {
+      styleFont(cursor, cursor + bLen, brand.bodyFont, FONT_BODY_SIZE, 700);
+      stylePara(cursor, bParaEnd, { ...BRAND_INDENT, spaceAbove: pt(8), spaceBelow: pt(4) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
+    } else if (/^These are some of the qualities/.test(bLine)) {
+      styleFont(cursor, cursor + bLen, brand.bodyFont, FONT_BODY_SIZE, 700);
     }
-    idx += len + 1;
+    cursor += bLen + 1;
   }
 
-  inserts.sort((a, b) => b.index - a.index || (a.kind === "pageBreak" ? -1 : 1));
-  for (const op of inserts) {
+  // Descending index so earlier indices stay valid; on a shared index the image goes in first so the
+  // page break lands before the image paragraph rather than inside it.
+  brandedInserts.sort((a, b) => b.index - a.index || (a.kind === "image" ? -1 : 1));
+  for (const op of brandedInserts) {
     if (op.kind === "image") {
-      requests.push({ insertInlineImage: { location: { index: op.index }, uri: op.image.uri, objectSize: { width: pt(op.image.width), height: pt(op.image.height) } } });
+      brandedRequests.push({ insertInlineImage: { location: { index: op.index }, uri: op.image.uri, objectSize: { width: pt(op.image.width), height: pt(op.image.height) } } });
     } else {
-      requests.push({ insertPageBreak: { location: { index: op.index } } });
+      brandedRequests.push({ insertPageBreak: { location: { index: op.index } } });
     }
   }
 
@@ -387,7 +393,7 @@ if (showType === "mansion" || showType === "island") {
       ...built,
       documentId,
       document_url: `https://docs.google.com/document/d/${documentId}/edit`,
-      requests,
+      requests: brandedRequests,
       design_assets: { header_url: headerUri, customer_journey_url: null },
     },
   }];
