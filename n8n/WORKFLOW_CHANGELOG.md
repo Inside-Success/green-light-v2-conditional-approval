@@ -17,6 +17,8 @@ Workflow changes:
 - `Refine V2 Draft JSON` prompt: one paragraph describing the branded letters (same four slots, everything else fixed).
 - Dashboard: five variant buttons on a full-width row (three columns under 900px, stacked on phones), transcript signals for Mansion/Island, no deadline for the branded shows.
 
+One-page fit (added the same night after testing on real transcripts): real calls produced paragraphs of 47-81 words and one Competitive Profile spilled onto a second page. The branded prompt now targets 35-50 words (55 max) and `Build V2 Letter` enforces it deterministically: each paragraph is capped at 60 words and the four together at 200 (measured ceiling for both brands), choosing the combination of whole-sentence or clause-boundary cuts that keeps the most words. Clause cuts are only taken on sentences that open with a subject (You/Your/This/...), so no fragments. A "Review note" warning tells the editor what was shortened; nothing blocks. `Apply V2 Refine Guardrails` applies the same per-paragraph cap to refined branded paragraphs.
+
 Verification: harness 95 checks (byte-identity for the three live variants; structure, fonts, images, page breaks, ordering, titles, refine slot isolation and word-cap warning for the new ones); live Mansion and Island generate (17 s, paragraphs 35-48 words), save and refine; live Normal/NLCEO/Reality generate and save; rendered docs reviewed page by page against the design docs; dashboard screenshots at desktop and phone width. First render showed the one-story graphic pushing its three closing lines onto their own page and an empty page after the co-production table; fixed (page-break ordering and spacer removal) and re-verified.
 
 ## 2026-10-01 - Editor change: Sheena replaces Daniel

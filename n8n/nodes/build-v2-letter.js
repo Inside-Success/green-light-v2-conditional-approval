@@ -359,8 +359,46 @@ if (showType === 'mansion' || showType === 'island') {
     island: { title: 'ENTREPRENEURS ISLAND TV', docPrefix: 'Entrepreneurs Island TV', site: 'www.entrepreneursislandtv.com' },
   };
   const brand = BRANDS[showType];
-  const BRANDED_WORD_LIMIT = 70;
+  // One-page ceiling for the Competitive Profile (measured on real letters: ~260 words overflowed,
+  // ~210 fit for both brands): each paragraph is capped at 55 words and the four together at 200,
+  // trimming whole sentences from the end so the text stays natural. Never blocks.
+  const BRANDED_WORD_LIMIT = 60;
+  const BRANDED_TOTAL_WORD_BUDGET = 200;
   const brandedWarnings = [];
+  const countWords = (value) => String(value || '').split(/\s+/).filter(Boolean).length;
+  // Every natural shortening of a paragraph: whole-sentence prefixes, plus each prefix extended by the
+  // start of the next sentence cut at a clause boundary (comma / semicolon / colon), longest first.
+  function brandedFitOptions(value) {
+    const text = String(value || '').trim();
+    const sentences = (text.match(/[^.!?]+[.!?]+["')\]]*(?:\s+|$)|[^.!?]+$/g) || [text]).map((s) => s.trim()).filter(Boolean);
+    const options = [{ words: countWords(text), text }];
+    for (let k = 0; k < sentences.length; k += 1) {
+      const prefix = sentences.slice(0, k).join(' ').trim();
+      if (prefix) options.push({ words: countWords(prefix), text: prefix });
+      const next = sentences[k].split(/\s+/).filter(Boolean);
+      // Clause cuts only on sentences that open with a subject, so the kept part still reads as a full sentence.
+      const clauseSafe = /^(You|Your|That|This|It|Those|These|There|Both|Each)\b/.test(sentences[k]);
+      for (let i = 8; clauseSafe && i < next.length - 3; i += 1) {
+        if (/[,;:]$/.test(next[i - 1])) {
+          const clause = next.slice(0, i).join(' ').replace(/[,;:\s]+$/, '') + '.';
+          const candidate = [prefix, clause].filter(Boolean).join(' ').trim();
+          options.push({ words: countWords(candidate), text: candidate });
+        }
+      }
+    }
+    const seen = new Set();
+    return options.filter((o) => o.words > 0 && !seen.has(o.words) && seen.add(o.words)).sort((a, b) => b.words - a.words);
+  }
+  function fitBrandedParagraph(value, label, limit = BRANDED_WORD_LIMIT) {
+    const text = String(value || '').trim();
+    const totalWords = countWords(text);
+    if (totalWords <= limit) return text;
+    const options = brandedFitOptions(text);
+    const pick = options.find((o) => o.words <= limit) || options[options.length - 1];
+    if (!pick || pick.text === text) return text;
+    brandedWarnings.push(`Review note: ${label} paragraph was shortened from ${totalWords} to ${pick.words} words so the Competitive Profile stays on one page. Please review that nothing important was dropped.`);
+    return pick.text;
+  }
   function normalizeBrandedDashes(value) {
     let text = String(value || '');
     if (!/[–—]/.test(text)) return text;
@@ -387,23 +425,44 @@ if (showType === 'mansion' || showType === 'island') {
   };
   const brandedData = {
     guest_name: finalGuestName,
-    business_experience: softenPersonalizedText(brandedRaw.business_experience, 'Business Experience', brandedWarnings),
-    competitive_edge: softenPersonalizedText(brandedRaw.competitive_edge, 'Competitive Edge', brandedWarnings),
-    personality: softenPersonalizedText(brandedRaw.personality, 'Personality', brandedWarnings),
-    wildcard: softenPersonalizedText(brandedRaw.wildcard, 'The Wildcard', brandedWarnings),
+    business_experience: fitBrandedParagraph(softenPersonalizedText(brandedRaw.business_experience, 'Business Experience', brandedWarnings), 'Business Experience'),
+    competitive_edge: fitBrandedParagraph(softenPersonalizedText(brandedRaw.competitive_edge, 'Competitive Edge', brandedWarnings), 'Competitive Edge'),
+    personality: fitBrandedParagraph(softenPersonalizedText(brandedRaw.personality, 'Personality', brandedWarnings), 'Personality'),
+    wildcard: fitBrandedParagraph(softenPersonalizedText(brandedRaw.wildcard, 'The Wildcard', brandedWarnings), 'The Wildcard'),
   };
+  // Total budget: if the four paragraphs together still exceed the page, shorten the longest ones further.
+  const BRANDED_FIELDS = [['business_experience', 'Business Experience'], ['competitive_edge', 'Competitive Edge'], ['personality', 'Personality'], ['wildcard', 'The Wildcard']];
+  {
+    const total = BRANDED_FIELDS.reduce((sum, [field]) => sum + countWords(brandedData[field]), 0);
+    if (total > BRANDED_TOTAL_WORD_BUDGET) {
+      // Choose, across the four paragraphs, the combination of natural cuts that keeps the most words
+      // while fitting the page budget (small search: a handful of options per paragraph).
+      const optionSets = BRANDED_FIELDS.map(([field]) => brandedFitOptions(brandedData[field]).filter((o) => o.words <= BRANDED_WORD_LIMIT).slice(0, 8));
+      let best = null;
+      const walk = (index, chosen, sum) => {
+        if (index === optionSets.length) {
+          if (sum <= BRANDED_TOTAL_WORD_BUDGET && (!best || sum > best.sum)) best = { sum, chosen: chosen.slice() };
+          return;
+        }
+        for (const option of optionSets[index]) { chosen.push(option); walk(index + 1, chosen, sum + option.words); chosen.pop(); }
+      };
+      walk(0, [], 0);
+      if (!best) best = { sum: 0, chosen: optionSets.map((set) => set[set.length - 1]) };
+      BRANDED_FIELDS.forEach(([field, label], i) => {
+        const option = best.chosen[i];
+        if (option && option.text !== brandedData[field]) {
+          brandedWarnings.push(`Review note: ${label} paragraph was shortened from ${countWords(brandedData[field])} to ${option.words} words so the Competitive Profile stays on one page. Please review that nothing important was dropped.`);
+          brandedData[field] = option.text;
+        }
+      });
+    }
+  }
   const brandedErrors = [];
   if (isBadName(brandedData.guest_name)) brandedErrors.push('Guest name is missing or invalid.');
   for (const [field, label] of [['business_experience', 'Business Experience'], ['competitive_edge', 'Competitive Edge'], ['personality', 'Personality'], ['wildcard', 'The Wildcard']]) {
     if (!brandedData[field]) brandedErrors.push(`${label} paragraph is missing.`);
   }
   if (brandedErrors.length) throw new Error(`V2 ${brand.docPrefix} validation failed: ${brandedErrors.join(' ')}`);
-  for (const [field, label] of [['business_experience', 'Business Experience'], ['competitive_edge', 'Competitive Edge'], ['personality', 'Personality'], ['wildcard', 'The Wildcard']]) {
-    const wordCount = brandedData[field].split(/\s+/).filter(Boolean).length;
-    if (wordCount > BRANDED_WORD_LIMIT) {
-      brandedWarnings.push(`Draft review needed: the ${label} paragraph is ${wordCount} words. Keep it to about 50 words so the Competitive Profile fits on one page.`);
-    }
-  }
 
   const brandedLetterText = [
     brand.title,

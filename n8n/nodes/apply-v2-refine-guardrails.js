@@ -235,6 +235,43 @@ const realityEditableSlots = [
   { key: 'wildcard', start: '\nTHE WILDCARD\n', end: '\nThese are some of the qualities our production team will explore' },
 ];
 const editableSlots = isRealityFamily ? realityEditableSlots : standardEditableSlots;
+const isBrandedReality = prep.show_type === 'mansion' || prep.show_type === 'island';
+const BRANDED_WORD_LIMIT = 60;
+const countWords = (value) => String(value || '').split(/\s+/).filter(Boolean).length;
+// Every natural shortening of a paragraph: whole-sentence prefixes, plus each prefix extended by the
+// start of the next sentence cut at a clause boundary (comma / semicolon / colon), longest first.
+function brandedFitOptions(value) {
+  const text = String(value || '').trim();
+  const sentences = (text.match(/[^.!?]+[.!?]+["')\]]*(?:\s+|$)|[^.!?]+$/g) || [text]).map((s) => s.trim()).filter(Boolean);
+  const options = [{ words: countWords(text), text }];
+  for (let k = 0; k < sentences.length; k += 1) {
+    const prefix = sentences.slice(0, k).join(' ').trim();
+    if (prefix) options.push({ words: countWords(prefix), text: prefix });
+    const next = sentences[k].split(/\s+/).filter(Boolean);
+    // Clause cuts only on sentences that open with a subject, so the kept part still reads as a full sentence.
+    const clauseSafe = /^(You|Your|That|This|It|Those|These|There|Both|Each)\b/.test(sentences[k]);
+    for (let i = 8; clauseSafe && i < next.length - 3; i += 1) {
+      if (/[,;:]$/.test(next[i - 1])) {
+        const clause = next.slice(0, i).join(' ').replace(/[,;:\s]+$/, '') + '.';
+        const candidate = [prefix, clause].filter(Boolean).join(' ').trim();
+        options.push({ words: countWords(candidate), text: candidate });
+      }
+    }
+  }
+  const seen = new Set();
+  return options.filter((o) => o.words > 0 && !seen.has(o.words) && seen.add(o.words)).sort((a, b) => b.words - a.words);
+}
+function fitBrandedParagraph(value, label, limit = BRANDED_WORD_LIMIT) {
+  const text = String(value || '').trim();
+  const totalWords = countWords(text);
+  if (totalWords <= limit) return text;
+  const options = brandedFitOptions(text);
+  const pick = options.find((o) => o.words <= limit) || options[options.length - 1];
+  if (!pick || pick.text === text) return text;
+  warnings.push(`Review note: ${label} paragraph was shortened from ${totalWords} to ${pick.words} words so the Competitive Profile stays on one page. Please review that nothing important was dropped.`);
+  return pick.text;
+}
+const BRANDED_SLOT_LABELS = { business_experience: 'Business Experience', competitive_edge: 'Competitive Edge', personality: 'Personality', wildcard: 'The Wildcard' };
 
 const originalDraft = normalize(prep.draft_text || '');
 const aiRaw = generated.output || generated.text || generated.response || generated.message || generated;
@@ -262,7 +299,11 @@ if (aiGuestName && aiGuestName !== originalGuestName) {
 for (const slot of editableSlots) {
   const replacement = extractBetween(aiDraft, slot.start, slot.end);
   if (replacement) {
-    const safeReplacement = isRealityFamily ? normalizeRealityDashes(replacement) : replacement;
+    let safeReplacement = isRealityFamily ? normalizeRealityDashes(replacement) : replacement;
+    if (isBrandedReality) {
+      const inner = safeReplacement.replace(/^\n+|\n+$/g, '');
+      safeReplacement = safeReplacement.replace(inner, fitBrandedParagraph(inner, BRANDED_SLOT_LABELS[slot.key] || slot.key));
+    }
     finalDraft = replaceBetween(finalDraft, slot.start, slot.end, safeReplacement);
   }
 }
