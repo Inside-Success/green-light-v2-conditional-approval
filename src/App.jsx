@@ -81,15 +81,31 @@ const SHOW_TYPE_LABELS = {
   normal: "Normal",
   nlceo: "Next Level CEO",
   reality: "Reality Show",
+  mansion: "Mansion of Money",
+  island: "Entrepreneurs Island",
 };
+const SHOW_TYPES_WITHOUT_DEADLINE = ["nlceo", "mansion", "island"];
+const MANSION_PATTERN = /\bmansion\s+of\s+money\b/i;
+const ISLAND_PATTERN = /\bentrepreneurs?\s+island\b/i;
 const REALITY_SHOW_NAME_PATTERN =
-  /\b(business race|entrepreneurs? island|mansion of money|flipping for fortune|startup lockdown|millionaire match house|love or business)\b/i;
+  /\b(business race|flipping for fortune|startup lockdown|millionaire match house|love or business)\b/i;
 const REALITY_GENERIC_PATTERN = /\breality\s+(?:show|series|tv|television|competition)\b/gi;
 
 function getTranscriptShowSignal(transcript) {
   const value = transcript.toLowerCase();
   if (/\bnext\s*level\s*ceo\b/.test(value) || /\bnlceo\b/.test(value)) {
     return "nlceo";
+  }
+  const mentionsMansion = MANSION_PATTERN.test(value);
+  const mentionsIsland = ISLAND_PATTERN.test(value);
+  if (mentionsMansion && !mentionsIsland) {
+    return "mansion";
+  }
+  if (mentionsIsland && !mentionsMansion) {
+    return "island";
+  }
+  if (mentionsMansion && mentionsIsland) {
+    return "reality";
   }
   if (REALITY_SHOW_NAME_PATTERN.test(value)) {
     return "reality";
@@ -103,6 +119,8 @@ function getTranscriptShowSignal(transcript) {
 
 function describeShowSignal(signal) {
   if (signal === "nlceo") return "Next Level CEO";
+  if (signal === "mansion") return "Mansion of Money";
+  if (signal === "island") return "Entrepreneurs Island";
   if (signal === "reality") return "a reality show";
   return "a normal show";
 }
@@ -473,7 +491,7 @@ export default function App() {
             transcript,
             client_name: generationRequest.clientName,
             show_type: showType,
-            deadline_text: showType === "nlceo" ? "" : deadlineText.trim(),
+            deadline_text: SHOW_TYPES_WITHOUT_DEADLINE.includes(showType) ? "" : deadlineText.trim(),
             requested_output: "v2_conditional_casting_approval",
             multi_client: generationRequest.multiClient,
             multi_client_letter_count: generationRequest.letterCount,
@@ -916,28 +934,17 @@ export default function App() {
               <label className="field-label" htmlFor="show-type">
                 Show variant
               </label>
-              <div className="segmented-control three" id="show-type">
-                <button
-                  type="button"
-                  className={showType === "normal" ? "selected" : ""}
-                  onClick={() => setShowType("normal")}
-                >
-                  Normal
-                </button>
-                <button
-                  type="button"
-                  className={showType === "nlceo" ? "selected" : ""}
-                  onClick={() => setShowType("nlceo")}
-                >
-                  Next Level CEO
-                </button>
-                <button
-                  type="button"
-                  className={showType === "reality" ? "selected" : ""}
-                  onClick={() => setShowType("reality")}
-                >
-                  Reality Show
-                </button>
+              <div className="segmented-control five" id="show-type">
+                {["normal", "nlceo", "reality", "mansion", "island"].map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={showType === value ? "selected" : ""}
+                    onClick={() => setShowType(value)}
+                  >
+                    {SHOW_TYPE_LABELS[value]}
+                  </button>
+                ))}
               </div>
             </div>
 

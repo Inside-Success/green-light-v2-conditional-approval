@@ -247,6 +247,23 @@ h2 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.segmented-control.five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.segmented-control.five button {
+  padding-left: 6px;
+  padding-right: 6px;
+  white-space: normal;
+  line-height: 1.15;
+}
+
+@media (max-width: 900px) {
+  .segmented-control.five {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 input,
 textarea {
   background: #0f0f0f;
@@ -785,6 +802,10 @@ textarea:focus {
   }
 
   .segmented-control.three {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .segmented-control.five {
     grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -28,7 +28,15 @@ const footerId =
   $json.footerId;
 
 const rawShowType = String(built.show_type || "normal").toLowerCase();
-const showType = rawShowType.includes("reality") ? "reality" : rawShowType.includes("nl") ? "nlceo" : "normal";
+const showType = rawShowType.includes("mansion")
+  ? "mansion"
+  : rawShowType.includes("island")
+  ? "island"
+  : rawShowType.includes("reality")
+  ? "reality"
+  : rawShowType.includes("nl")
+  ? "nlceo"
+  : "normal";
 const isNextLevelCeo = showType === "nlceo";
 const isReality = showType === "reality";
 const guestName = String(built.guest_name || built.client_name || "Guest")
@@ -157,6 +165,232 @@ function normalizeApprovalSections(text) {
   }
 
   return [text, approvalHeading, fallbackApprovalBody].filter(Boolean).join("\n\n");
+}
+
+if (showType === "mansion" || showType === "island") {
+  // Branded reality letters (Mansion of Money, Entrepreneurs Island), added 2026-11-05.
+  // Self-contained so the Normal / NLCEO / Reality path below stays byte-identical.
+  const rgb = (hex) => ({ color: { rgbColor: { red: parseInt(hex.slice(0, 2), 16) / 255, green: parseInt(hex.slice(2, 4), 16) / 255, blue: parseInt(hex.slice(4, 6), 16) / 255 } } });
+  const BRANDS = {
+    mansion: {
+      title: "MANSION OF MONEY TV", site: "www.mansionofmoneytv.com", assets: "mansion",
+      headFont: "Cinzel", bodyFont: "Open Sans", headColor: rgb("CE973D"), subColor: rgb("CE973D"),
+      subFont: "Open Sans", subSize: 13, subBold: true, titleSize: 26, subtitleColor: rgb("0A0A0A"),
+      images: { fame: [1400, 954], mediaPack: [2105, 1668], coprod: [1500, 1261], headlines: [1576, 925] },
+    },
+    island: {
+      title: "ENTREPRENEURS ISLAND TV", site: "www.entrepreneursislandtv.com", assets: "island",
+      headFont: "Fjalla One", bodyFont: "Plus Jakarta Sans", headColor: rgb("015FBC"), subColor: rgb("068EB0"),
+      subFont: "Fjalla One", subSize: 16, subBold: false, titleSize: 32, subtitleColor: rgb("068EB0"),
+      images: { fame: [1400, 937], mediaPack: [2105, 1668], coprod: [1500, 1261], headlines: [1576, 925] },
+    },
+  };
+  const brand = BRANDS[showType];
+  const LINK_COLOR = rgb("015FBC");
+  const GREY = rgb("999999");
+  const assetBase = `${ASSET_BASE_URL}/${brand.assets}`;
+  const imageSpec = (key, file, widthPt) => {
+    const [w, h] = brand.images[key];
+    return { uri: `${assetBase}/${file}`, width: widthPt, height: Math.round((widthPt * h) / w) };
+  };
+  const IMAGES = {
+    fame: imageSpec("fame", "content-production.jpg", 540),
+    mediaPack: imageSpec("mediaPack", "media-pack.jpg", 540),
+    coprod: imageSpec("coprod", "co-production-model.png", 520),
+    headlines: imageSpec("headlines", "headlines.jpg", 540),
+  };
+  const MAJOR = new Set([
+    "CONGRATULATIONS!", "YOUR COMPETITIVE PROFILE", "DONE-FOR-YOU CONTENT PRODUCTION", "MEDIA & CONTENT OPPORTUNITIES",
+    "MEDIA PACK", "OUR UNIQUE CO-PRODUCTION MODEL", "OUR REALITY SHOWS ARE HIGHLY ANTICIPATED AND ALREADY MAKING HEADLINES", "NEXT STEP ➡️",
+  ]);
+  const PAGE_BREAK_BEFORE = new Set([
+    "MEDIA & CONTENT OPPORTUNITIES", "MEDIA PACK", "OUR UNIQUE CO-PRODUCTION MODEL",
+    "OUR REALITY SHOWS ARE HIGHLY ANTICIPATED AND ALREADY MAKING HEADLINES", "NEXT STEP ➡️",
+  ]);
+  const SUB = new Set(["BUSINESS EXPERIENCE", "COMPETITIVE EDGE", "PERSONALITY", "THE WILDCARD"]);
+  const BOLD_CHECKS = new Set([
+    "✅ A meaningful story", "✅ Genuine expertise", "✅ A clear mission", "✅ A competitive personality",
+    "✅ The ability to make decisions under pressure", "✅ An interesting background or perspective",
+    "✅ The potential to create memorable television and inspire others",
+  ]);
+  const IMAGE_AFTER = {
+    "✅ A legacy asset": "fame",
+    "MEDIA PACK": "mediaPack",
+    "See how our streamlined co-production model compares to traditional television casting and production.": "coprod",
+    "OUR REALITY SHOWS ARE HIGHLY ANTICIPATED AND ALREADY MAKING HEADLINES": "headlines",
+  };
+  const DISCLAIMER = "Results vary. Participation does not guarantee specific business outcomes, revenue, publicity, media placements or future opportunities.";
+
+  const rawLines = normalizeText(built.letter_text || built.preview || "").split("\n").map((line) => line.replace(/[ \t]+$/g, ""));
+  const congratsAt = rawLines.findIndex((line) => /^CONGRATULATIONS!?$/i.test(line.trim()));
+  let letterLines = (congratsAt >= 0 ? rawLines.slice(congratsAt) : rawLines.slice(4)).map((line) => line.trim());
+  while (letterLines.length && (letterLines[letterLines.length - 1] === "" || letterLines[letterLines.length - 1].toLowerCase() === brand.site || /^Results vary\./i.test(letterLines[letterLines.length - 1]))) {
+    letterLines.pop();
+  }
+  const entries = [];
+  for (const line of letterLines) {
+    const text = line === "CONGRATULATIONS" ? "CONGRATULATIONS!" : line === "NEXT STEP" ? "NEXT STEP ➡️" : line;
+    entries.push({ text, kind: "text" });
+    const imageKey = IMAGE_AFTER[text];
+    if (imageKey) entries.push({ text: "", kind: "image", image: imageKey, pageBreakBefore: imageKey === "fame" });
+  }
+  entries.push({ text: "", kind: "text" });
+  entries.push({ text: DISCLAIMER, kind: "disclaimer" });
+  const bodyContent = entries.map((entry) => entry.text).join("\n");
+  if (bodyContent.length < 500) throw new Error("Edited V2 letter body is too short.");
+
+  const line1 = brand.title;
+  const line2 = "CONDITIONAL CASTING APPROVAL";
+  const line3 = `Cast Name: ${guestName}`;
+  const titleText = `${line1}\n${line2}\n${line3}\n`;
+  const allText = titleText + " \n" + "\n" + bodyContent;
+
+  const requests = [];
+  requests.push({
+    updateDocumentStyle: {
+      documentStyle: {
+        pageSize: { width: { magnitude: 612, unit: "PT" }, height: { magnitude: 792, unit: "PT" } },
+        marginHeader: { magnitude: 0, unit: "PT" },
+        marginTop: { magnitude: 130, unit: "PT" },
+        marginBottom: { magnitude: 54, unit: "PT" },
+        marginLeft: { magnitude: 0, unit: "PT" },
+        marginRight: { magnitude: 0, unit: "PT" },
+        marginFooter: { magnitude: 0, unit: "PT" },
+      },
+      fields: "pageSize,marginTop,marginBottom,marginLeft,marginRight,marginHeader,marginFooter",
+    },
+  });
+  const headerUri = `${assetBase}/header.jpg`;
+  if (headerId) {
+    requests.push({
+      insertInlineImage: {
+        location: { segmentId: headerId, index: 0 },
+        uri: headerUri,
+        objectSize: { width: { magnitude: 612, unit: "PT" }, height: { magnitude: 122, unit: "PT" } },
+      },
+    });
+    requests.push({
+      updateParagraphStyle: {
+        range: { segmentId: headerId, startIndex: 0, endIndex: 1 },
+        paragraphStyle: { alignment: "CENTER", spaceAbove: { magnitude: 0, unit: "PT" }, spaceBelow: { magnitude: 0, unit: "PT" }, lineSpacing: 100 },
+        fields: "alignment,spaceAbove,spaceBelow,lineSpacing",
+      },
+    });
+  }
+  if (footerId) {
+    const footerText = `${brand.site}\n`;
+    requests.push({ insertText: { location: { segmentId: footerId, index: 0 }, text: footerText } });
+    requests.push({
+      updateTextStyle: {
+        range: { segmentId: footerId, startIndex: 0, endIndex: footerText.length },
+        textStyle: { bold: false, fontSize: { magnitude: 10, unit: "PT" }, weightedFontFamily: { fontFamily: brand.bodyFont, weight: 400 }, foregroundColor: rgb("555555") },
+        fields: "bold,fontSize,weightedFontFamily,foregroundColor",
+      },
+    });
+    requests.push({
+      updateParagraphStyle: {
+        range: { segmentId: footerId, startIndex: 0, endIndex: footerText.length },
+        paragraphStyle: { alignment: "CENTER", lineSpacing: 100, spaceAbove: { magnitude: 0, unit: "PT" }, spaceBelow: { magnitude: 6, unit: "PT" } },
+        fields: "alignment,lineSpacing,spaceAbove,spaceBelow",
+      },
+    });
+  }
+
+  requests.push({ insertText: { location: { index: 1 }, text: allText } });
+
+  const text = (s, e, style, fields) => { if (e > s) requests.push({ updateTextStyle: { range: { startIndex: s, endIndex: e }, textStyle: style, fields } }); };
+  const para = (s, e, style, fields) => { if (e > s) requests.push({ updateParagraphStyle: { range: { startIndex: s, endIndex: e }, paragraphStyle: style, fields } }); };
+  const font = (s, e, family, size, weight, extra = {}) => text(s, e, { bold: weight >= 700, fontSize: { magnitude: size, unit: "PT" }, weightedFontFamily: { fontFamily: family, weight }, ...extra }, "bold,fontSize,weightedFontFamily" + Object.keys(extra).map((k) => "," + k).join(""));
+  const INDENT = { indentStart: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" }, indentFirstLine: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" }, indentEnd: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" } };
+  const BULLET = { indentStart: { magnitude: BULLET_INDENT_START, unit: "PT" }, indentFirstLine: { magnitude: BULLET_INDENT_FIRST, unit: "PT" }, indentEnd: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" } };
+  const pt = (n) => ({ magnitude: n, unit: "PT" });
+
+  const t1Start = 1, t1End = t1Start + line1.length + 1;
+  const t2Start = t1End, t2End = t2Start + line2.length + 1;
+  const t3Start = t2End, t3End = t3Start + line3.length + 1;
+  const dividerStart = t3End, dividerEnd = dividerStart + 2;
+  const contentStart = dividerEnd + 1;
+  const contentEnd = contentStart + bodyContent.length;
+
+  font(t1Start, t1Start + line1.length, brand.headFont, brand.titleSize, 400, { foregroundColor: brand.headColor });
+  para(t1Start, t1End, { alignment: "CENTER", spaceAbove: pt(6), spaceBelow: pt(2), ...INDENT }, "alignment,spaceAbove,spaceBelow,indentStart,indentFirstLine,indentEnd");
+  font(t2Start, t2Start + line2.length, brand.bodyFont, 14, 700, { underline: true, foregroundColor: brand.subtitleColor });
+  para(t2Start, t2End, { alignment: "CENTER", spaceAbove: pt(0), spaceBelow: pt(16), ...INDENT }, "alignment,spaceAbove,spaceBelow,indentStart,indentFirstLine,indentEnd");
+  font(t3Start, t3Start + line3.length, brand.bodyFont, 14, 400);
+  font(t3Start, t3Start + "Cast Name:".length, brand.bodyFont, 14, 700);
+  para(t3Start, t3End, { alignment: "START", spaceAbove: pt(0), spaceBelow: pt(14), ...INDENT }, "alignment,spaceAbove,spaceBelow,indentStart,indentFirstLine,indentEnd");
+  para(dividerStart, dividerEnd, { ...INDENT, spaceAbove: pt(0), spaceBelow: pt(8), borderBottom: { color: rgb("1A1A1A"), width: pt(1), padding: pt(0), dashStyle: "SOLID" } }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,borderBottom");
+  text(dividerStart, dividerEnd, { fontSize: pt(1) }, "fontSize");
+
+  if (contentEnd > contentStart) {
+    text(contentStart, contentEnd, { fontSize: pt(FONT_BODY_SIZE), weightedFontFamily: { fontFamily: brand.bodyFont, weight: 400 }, foregroundColor: rgb("0A0A0A") }, "fontSize,weightedFontFamily,foregroundColor");
+    para(contentStart, contentEnd, { alignment: "START", ...INDENT, lineSpacing: LINE_SPACING, spaceAbove: pt(0), spaceBelow: pt(6) }, "alignment,indentStart,indentFirstLine,indentEnd,lineSpacing,spaceAbove,spaceBelow");
+  }
+
+  const inserts = [];
+  let idx = contentStart;
+  for (const entry of entries) {
+    const line = entry.text;
+    const len = line.length;
+    const paraEnd = idx + len + 1;
+    if (entry.kind === "image") {
+      para(idx, paraEnd, { alignment: "CENTER", indentStart: pt(0), indentFirstLine: pt(0), indentEnd: pt(0), spaceAbove: pt(10), spaceBelow: pt(10) }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
+      inserts.push({ index: idx, kind: "image", image: IMAGES[entry.image] });
+      if (entry.pageBreakBefore) inserts.push({ index: idx, kind: "pageBreak" });
+    } else if (entry.kind === "disclaimer") {
+      font(idx, idx + len, brand.bodyFont, 9, 400, { foregroundColor: GREY });
+      para(idx, paraEnd, { alignment: "CENTER", indentStart: pt(96), indentFirstLine: pt(96), indentEnd: pt(96), spaceAbove: pt(18), spaceBelow: pt(10), lineSpacing: 105 }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,lineSpacing");
+    } else if (len === 0) {
+      // blank spacer line
+    } else if (MAJOR.has(line)) {
+      const isHeadlines = line.startsWith("OUR REALITY SHOWS ARE HIGHLY");
+      font(idx, idx + len, brand.headFont, isHeadlines ? 22 : 22, 400, { foregroundColor: brand.headColor });
+      para(idx, paraEnd, { alignment: isHeadlines ? "CENTER" : "START", ...INDENT, spaceAbove: pt(16), spaceBelow: pt(8), keepWithNext: true }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
+      if (PAGE_BREAK_BEFORE.has(line)) inserts.push({ index: idx, kind: "pageBreak" });
+    } else if (SUB.has(line)) {
+      font(idx, idx + len, brand.subFont, brand.subSize, brand.subBold ? 700 : 400, { foregroundColor: brand.subColor });
+      para(idx, paraEnd, { ...INDENT, spaceAbove: pt(12), spaceBelow: pt(4), keepWithNext: true }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
+    } else if (/^✅/.test(line)) {
+      if (BOLD_CHECKS.has(line)) font(idx, idx + len, brand.bodyFont, FONT_BODY_SIZE, 700);
+      para(idx, paraEnd, { ...BULLET, spaceAbove: pt(0), spaceBelow: pt(4) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
+    } else if (/^•/.test(line)) {
+      para(idx, paraEnd, { ...BULLET, spaceAbove: pt(0), spaceBelow: pt(3) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
+    } else if (/^(1\. WATCH ONE EPISODE:|2\. REVIEW THE MEDIA KIT:)/.test(line)) {
+      const labelLen = line.indexOf(":") + 1;
+      font(idx, idx + labelLen, brand.headFont, 13, brand.subBold ? 700 : 400, { foregroundColor: brand.subColor });
+      for (const link of [{ label: RUDY_EPISODE_LINK_TEXT, url: RUDY_EPISODE_URL }, { label: MEDIA_PACK_LINK_TEXT, url: MEDIA_PACK_URL }]) {
+        const offset = line.indexOf(link.label);
+        if (offset === -1) continue;
+        text(idx + offset, idx + offset + link.label.length, { link: { url: link.url }, underline: true, bold: true, foregroundColor: LINK_COLOR }, "link,underline,bold,foregroundColor");
+      }
+      para(idx, paraEnd, { ...INDENT, spaceAbove: pt(6), spaceBelow: pt(6) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
+    } else if (/^Before your second call/.test(line) || /^(It has the potential to become:|These may include:|During your next call we will discuss:)$/.test(line)) {
+      font(idx, idx + len, brand.bodyFont, FONT_BODY_SIZE, 700);
+      para(idx, paraEnd, { ...INDENT, spaceAbove: pt(8), spaceBelow: pt(4) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
+    } else if (/^These are some of the qualities/.test(line)) {
+      font(idx, idx + len, brand.bodyFont, FONT_BODY_SIZE, 700);
+    }
+    idx += len + 1;
+  }
+
+  inserts.sort((a, b) => b.index - a.index || (a.kind === "pageBreak" ? -1 : 1));
+  for (const op of inserts) {
+    if (op.kind === "image") {
+      requests.push({ insertInlineImage: { location: { index: op.index }, uri: op.image.uri, objectSize: { width: pt(op.image.width), height: pt(op.image.height) } } });
+    } else {
+      requests.push({ insertPageBreak: { location: { index: op.index } } });
+    }
+  }
+
+  return [{
+    json: {
+      ...built,
+      documentId,
+      document_url: `https://docs.google.com/document/d/${documentId}/edit`,
+      requests,
+      design_assets: { header_url: headerUri, customer_journey_url: null },
+    },
+  }];
 }
 
 let finalBodyContent = stripV2TitleAndFooter(built.letter_text || built.preview || "");

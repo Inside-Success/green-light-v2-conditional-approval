@@ -18,11 +18,11 @@ export function validateClientPayload({
     errors.push("Transcript is too short for reliable V2 extraction.");
   }
 
-  if (!["normal", "nlceo", "reality"].includes(showType)) {
-    errors.push("Choose Normal, Next Level CEO, or Reality Show.");
+  if (!["normal", "nlceo", "reality", "mansion", "island"].includes(showType)) {
+    errors.push("Choose Normal, Next Level CEO, Reality Show, Mansion of Money, or Entrepreneurs Island.");
   }
 
-  if (showType !== "nlceo" && !String(deadlineText || "").trim()) {
+  if (["normal", "reality"].includes(showType) && !String(deadlineText || "").trim()) {
     errors.push("Normal and Reality shows require deadline text.");
   }
 

@@ -351,6 +351,172 @@ const baseWarnings = uniqueCleanWarnings(
     : [...aiWarnings, ...nameWarnings]
 );
 
+if (showType === 'mansion' || showType === 'island') {
+  // Branded reality letters (Mansion of Money, Entrepreneurs Island), added 2026-11-05.
+  // Same four AI slots as the reality letter, trimmed fixed copy per the design docs.
+  const BRANDS = {
+    mansion: { title: 'MANSION OF MONEY TV', docPrefix: 'Mansion of Money TV', site: 'www.mansionofmoneytv.com' },
+    island: { title: 'ENTREPRENEURS ISLAND TV', docPrefix: 'Entrepreneurs Island TV', site: 'www.entrepreneursislandtv.com' },
+  };
+  const brand = BRANDS[showType];
+  const BRANDED_WORD_LIMIT = 70;
+  const brandedWarnings = [];
+  function normalizeBrandedDashes(value) {
+    let text = String(value || '');
+    if (!/[–—]/.test(text)) return text;
+    text = text.replace(/(\d)\s*[–—]+\s*(\d)/g, '$1-$2');
+    text = text.replace(/^\s*[–—]+\s*/, '');
+    text = text.replace(/\s*[–—]+\s*$/, '.');
+    text = text.replace(/([,;:])\s*[–—]+\s*/g, '$1 ');
+    text = text.replace(/\s*[–—]+\s*([,;:.!?])/g, '$1');
+    text = text.replace(/\s*[–—]+\s*/g, ', ');
+    return text.replace(/\s+/g, ' ').trim();
+  }
+  function pickBrandedField(...keys) {
+    for (const key of keys) {
+      const value = extracted[key];
+      if (typeof value === 'string' && value.trim()) return value;
+    }
+    return '';
+  }
+  const brandedRaw = {
+    business_experience: cleanParagraph(normalizeBrandedDashes(pickBrandedField('business_experience', 'businessExperience'))),
+    competitive_edge: cleanParagraph(normalizeBrandedDashes(pickBrandedField('competitive_edge', 'competitiveEdge'))),
+    personality: cleanParagraph(normalizeBrandedDashes(pickBrandedField('personality', 'personality_profile'))),
+    wildcard: cleanParagraph(normalizeBrandedDashes(pickBrandedField('wildcard', 'the_wildcard', 'wild_card', 'wildCard'))),
+  };
+  const brandedData = {
+    guest_name: finalGuestName,
+    business_experience: softenPersonalizedText(brandedRaw.business_experience, 'Business Experience', brandedWarnings),
+    competitive_edge: softenPersonalizedText(brandedRaw.competitive_edge, 'Competitive Edge', brandedWarnings),
+    personality: softenPersonalizedText(brandedRaw.personality, 'Personality', brandedWarnings),
+    wildcard: softenPersonalizedText(brandedRaw.wildcard, 'The Wildcard', brandedWarnings),
+  };
+  const brandedErrors = [];
+  if (isBadName(brandedData.guest_name)) brandedErrors.push('Guest name is missing or invalid.');
+  for (const [field, label] of [['business_experience', 'Business Experience'], ['competitive_edge', 'Competitive Edge'], ['personality', 'Personality'], ['wildcard', 'The Wildcard']]) {
+    if (!brandedData[field]) brandedErrors.push(`${label} paragraph is missing.`);
+  }
+  if (brandedErrors.length) throw new Error(`V2 ${brand.docPrefix} validation failed: ${brandedErrors.join(' ')}`);
+  for (const [field, label] of [['business_experience', 'Business Experience'], ['competitive_edge', 'Competitive Edge'], ['personality', 'Personality'], ['wildcard', 'The Wildcard']]) {
+    const wordCount = brandedData[field].split(/\s+/).filter(Boolean).length;
+    if (wordCount > BRANDED_WORD_LIMIT) {
+      brandedWarnings.push(`Draft review needed: the ${label} paragraph is ${wordCount} words. Keep it to about 50 words so the Competitive Profile fits on one page.`);
+    }
+  }
+
+  const brandedLetterText = [
+    brand.title,
+    'CONDITIONAL CASTING APPROVAL',
+    `Cast Name: ${brandedData.guest_name}`,
+    '',
+    'CONGRATULATIONS!',
+    'After reviewing your application, business background, accomplishments, personality, and overall fit, our casting team believes you could be a strong fit for an upcoming reality show on Inside Success TV.',
+    'Our reality shows feature successful entrepreneurs, business owners, founders, and high-performing personalities who are willing to put their experience, decision-making, leadership, and business skills to the test.',
+    '✅ A meaningful story',
+    '✅ Genuine expertise',
+    '✅ A clear mission',
+    '✅ A competitive personality',
+    '✅ The ability to make decisions under pressure',
+    '✅ An interesting background or perspective',
+    '✅ The potential to create memorable television and inspire others',
+    'Based on our initial review, we believe you have several of the qualities our production team is looking for.',
+    'As a result, you have received conditional approval to continue through the Inside Success TV casting process.',
+    '',
+    'YOUR COMPETITIVE PROFILE',
+    'Based on what we learned during the application process, our casting team currently sees several qualities that could make you an interesting addition to an upcoming production.',
+    'BUSINESS EXPERIENCE',
+    brandedData.business_experience,
+    'COMPETITIVE EDGE',
+    brandedData.competitive_edge,
+    'PERSONALITY',
+    brandedData.personality,
+    'THE WILDCARD',
+    brandedData.wildcard,
+    'These are some of the qualities our production team will explore further during the next stage of casting.',
+    '',
+    'DONE-FOR-YOU CONTENT PRODUCTION',
+    'In addition to your participation in the reality show, you will also receive a professionally produced documentary-style feature focused on your business, story, expertise, and journey.',
+    'Most businesses create content.',
+    'Very few create true authority assets.',
+    'Your documentary is designed to become a long-term piece of media you can continue using well beyond the show itself.',
+    'It has the potential to become:',
+    '✅ A trust-building asset',
+    '✅ A credibility asset',
+    '✅ A sales asset',
+    '✅ A speaking asset',
+    '✅ A recruitment asset',
+    '✅ A referral asset',
+    '✅ A PR asset',
+    '✅ A social media asset',
+    '✅ A personal brand asset',
+    '✅ A legacy asset',
+    'The reality show gives audiences the chance to see you perform.',
+    'The documentary gives them the chance to understand who you are, what you have built, and why your story matters.',
+    'Together, they create a powerful foundation for building visibility, credibility, and authority around your brand.',
+    '',
+    'MEDIA & CONTENT OPPORTUNITIES',
+    'Selected cast members may also receive promotional and media assets associated with their participation, depending on the production package and series.',
+    'These may include:',
+    '✅ Television appearance footage',
+    '✅ Social media clips',
+    '✅ Cast announcement graphics',
+    '✅ Behind-the-scenes content',
+    '✅ Promotional photography',
+    '✅ PR and media opportunities',
+    '✅ Website content',
+    '✅ Personal brand content',
+    '✅ Promotional assets connected to the show',
+    'Specific deliverables, licensing rights, promotional opportunities, and participation requirements will be outlined during the casting and contracting process.',
+    '',
+    'MEDIA PACK',
+    '',
+    'OUR UNIQUE CO-PRODUCTION MODEL',
+    'See how our streamlined co-production model compares to traditional television casting and production.',
+    '',
+    'OUR REALITY SHOWS ARE HIGHLY ANTICIPATED AND ALREADY MAKING HEADLINES',
+    '',
+    'NEXT STEP ➡️',
+    'Your application has now advanced to the next stage of casting.',
+    'During your next call we will discuss:',
+    '• The reality show concept you are being considered for',
+    '• Why our casting team selected your application',
+    '• Your potential role within the cast',
+    '• Filming and production expectations',
+    '• Participation requirements',
+    '• Potential positioning opportunities',
+    '• Distribution strategy',
+    '• Authority-building opportunities',
+    '• Whether this is the right fit for both parties',
+    'Please ensure you attend your next scheduled call.',
+    'Failure to attend may result in your application being withdrawn from the current casting cycle.',
+    'Before your second call, please review these two resources:',
+    "1. WATCH ONE EPISODE: Watch Rudy Mawer's Inside Success episode",
+    '2. REVIEW THE MEDIA KIT: View the Inside Success Media Pack',
+    '',
+    brand.site,
+    'Results vary. Participation does not guarantee specific business outcomes, revenue, publicity, media placements or future opportunities.',
+  ].join('\n').replace(/\n{3,}/g, '\n\n').trim();
+
+  const brandedSlotText = [brandedData.business_experience, brandedData.competitive_edge, brandedData.personality, brandedData.wildcard].join('\n');
+  const brandedClaimReview = analyzeClaimSafety(brandedSlotText);
+  const brandedReviewWarnings = [];
+  if (hasPlaceholder(brandedLetterText)) {
+    brandedReviewWarnings.push(`Draft review needed: final ${brand.docPrefix} letter still contains a bracket placeholder. Edit it in the preview before sending to Google Drive.`);
+  }
+  for (const claimError of brandedClaimReview.hardBlocks) {
+    brandedReviewWarnings.push(`Draft compliance review needed: ${claimError}`);
+  }
+  const brandedFinalWarnings = uniqueCleanWarnings([...brandedWarnings, ...baseWarnings, ...brandedClaimReview.warnings, ...brandedReviewWarnings]);
+  const brandedSafeName = cleanTitleName(brandedData.guest_name);
+  const brandedDocTitle = `${brand.docPrefix} x ${brandedSafeName || 'Edited Draft'}`
+    .replace(/[\\/:*?"<>|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .slice(0, 180)
+    .trim();
+  return [{ json: { ok: true, validation_status: 'passed', show_type: showType, doc_title: brandedDocTitle, guest_name: brandedData.guest_name, guest_name_source: manualClientName ? 'manual' : 'ai', guest_name_confidence: manualClientName ? 1 : guestNameConfidence, possible_guest_names: possibleGuestNames, possible_rep_names: possibleRepNames, letter_text: brandedLetterText, preview: brandedLetterText, warnings: brandedFinalWarnings } }];
+}
+
 if (showType === 'reality') {
   const realityWarnings = [];
   function normalizeRealityDashes(value) {

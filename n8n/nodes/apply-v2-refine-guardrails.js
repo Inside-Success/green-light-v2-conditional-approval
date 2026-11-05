@@ -206,9 +206,12 @@ function normalizeRealityDashes(value) {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+const isRealityFamily = prep.show_type === 'reality' || prep.show_type === 'mansion' || prep.show_type === 'island';
+const DOC_TITLE_PREFIX = { mansion: 'Mansion of Money TV', island: 'Entrepreneurs Island TV' }[prep.show_type] || 'Inside Success TV';
+
 function buildDocTitle(name) {
   const titleName = cleanTitleName(name || 'Edited Draft');
-  return `Inside Success TV x ${titleName}`
+  return `${DOC_TITLE_PREFIX} x ${titleName}`
     .replace(/[\\/:*?"<>|]/g, ' ')
     .replace(/\s+/g, ' ')
     .slice(0, 180)
@@ -231,7 +234,7 @@ const realityEditableSlots = [
   { key: 'personality', start: '\nPERSONALITY\n', end: '\nTHE WILDCARD\n' },
   { key: 'wildcard', start: '\nTHE WILDCARD\n', end: '\nThese are some of the qualities our production team will explore' },
 ];
-const editableSlots = prep.show_type === 'reality' ? realityEditableSlots : standardEditableSlots;
+const editableSlots = isRealityFamily ? realityEditableSlots : standardEditableSlots;
 
 const originalDraft = normalize(prep.draft_text || '');
 const aiRaw = generated.output || generated.text || generated.response || generated.message || generated;
@@ -259,7 +262,7 @@ if (aiGuestName && aiGuestName !== originalGuestName) {
 for (const slot of editableSlots) {
   const replacement = extractBetween(aiDraft, slot.start, slot.end);
   if (replacement) {
-    const safeReplacement = prep.show_type === 'reality' ? normalizeRealityDashes(replacement) : replacement;
+    const safeReplacement = isRealityFamily ? normalizeRealityDashes(replacement) : replacement;
     finalDraft = replaceBetween(finalDraft, slot.start, slot.end, safeReplacement);
   }
 }

@@ -2,7 +2,9 @@ try {
   const body = $input.first().json.body || {};
   const letterText = String(body.letter_text || body.draft_text || body.preview || '').trim();
   const rawShowType = String(body.show_type || body.showType || 'normal');
-  const showType = /reality/i.test(rawShowType) ? 'reality' : (rawShowType.toLowerCase().includes('nl') ? 'nlceo' : 'normal');
+  const showType = /mansion/i.test(rawShowType) ? 'mansion' : /island/i.test(rawShowType) ? 'island' : /reality/i.test(rawShowType) ? 'reality' : (rawShowType.toLowerCase().includes('nl') ? 'nlceo' : 'normal');
+  const isRealityFamily = showType === 'reality' || showType === 'mansion' || showType === 'island';
+  const DOC_TITLE_PREFIX = { mansion: 'Mansion of Money TV', island: 'Entrepreneurs Island TV' }[showType] || 'Inside Success TV';
   const requestGuestName = String(body.guest_name || body.client_name || body.clientName || '').replace(/\s+/g, ' ').trim();
   let docTitle = String(body.doc_title || body.title || '').replace(/\s+/g, ' ').trim();
   const editorName = String(body.editor_name || body.editorName || 'Adedokun Adedoyin').replace(/\s+/g, ' ').trim() || 'Adedokun Adedoyin';
@@ -174,7 +176,7 @@ try {
   if (!letterText) errors.push('Edited V2 letter text is required before sending to Google Drive.');
   if (letterText && letterText.length < 500) errors.push('Edited V2 letter is too short to save as a final document.');
   if (hasPlaceholder(letterText)) errors.push('Edited V2 letter still contains a bracket placeholder.');
-  if (showType === 'reality') {
+  if (isRealityFamily) {
     const realitySevereHits = findSevereRealityClaims(extractRealityEditableText(letterText));
     if (realitySevereHits.length) errors.push(`Edited reality letter contains a forbidden promise: ${realitySevereHits.join(' ')}`);
   } else {
@@ -185,7 +187,7 @@ try {
 
   function extractNameFromTitle(value) {
     const title = String(value || '').replace(/\s+/g, ' ').trim();
-    const productionMatch = title.match(/^Inside Success TV\s*x\s*(.+)$/i);
+    const productionMatch = title.match(/^(?:Inside Success TV|Mansion of Money TV|Entrepreneurs Island TV)\s*x\s*(.+)$/i);
     if (productionMatch) return productionMatch[1].trim();
     const greenLightMatch = title.match(/^Green Light\s*-\s*(.*?)\s*x\s*(Inside Success TV|Next Level CEO)$/i);
     if (greenLightMatch) return greenLightMatch[1].trim();
@@ -223,7 +225,7 @@ try {
   const editedGuestName = extractNameFromEditedLetter(letterText);
   const guestName = editedGuestName || requestGuestName || extractNameFromTitle(docTitle);
   const titleName = cleanTitleName(guestName || 'Edited Draft');
-  docTitle = `Inside Success TV x ${titleName}`
+  docTitle = `${DOC_TITLE_PREFIX} x ${titleName}`
     .replace(/[\\/:*?"<>|]/g, ' ')
     .replace(/\s+/g, ' ')
     .slice(0, 180)

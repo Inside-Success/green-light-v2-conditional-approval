@@ -1,0 +1,158 @@
+{
+  "nodes": [
+    {
+      "id": "e434ce37-9628-449d-abf9-39cc502f8ca1",
+      "name": "V2 Branded Reality?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        260,
+        -220
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "v2-branded-mansion",
+              "leftValue": "={{ $json.show_type }}",
+              "rightValue": "mansion",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "v2-branded-island",
+              "leftValue": "={{ $json.show_type }}",
+              "rightValue": "island",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "eda265b4-f636-46b5-ab46-42f6db61274d",
+      "name": "Extract V2 Branded Profile JSON",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        560,
+        -440
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ (() => {\n  const clean = $('Clean V2 Transcript').first().json || {};\n  const transcript = clean.cleaned_transcript || '';\n  const overrideName = clean.manual_client_name || '';\n\n  if (!clean.multi_client) {\n    return 'OPTIONAL_CLIENT_NAME_OVERRIDE: ' + overrideName + '\\n\\nTRANSCRIPT:\\n' + transcript;\n  }\n\n  const clientNames = Array.isArray(clean.client_names)\n    ? clean.client_names.filter(Boolean).join(', ')\n    : '';\n\n  return `OPTIONAL_CLIENT_NAME_OVERRIDE: ${overrideName}\n\nMULTI_CLIENT_TRANSCRIPT_MODE: true\nREQUESTED_OUTPUT_COUNT: ${clean.multi_client_letter_count || 1}\nTARGET_CLIENT_POSITION: ${clean.target_client_position || 1}\nTARGET_CLIENT_NAME: ${clean.target_client_name || '[not provided]'}\nKNOWN_CLIENT_NAMES: ${clientNames || '[not provided]'}\n\nMULTI_CLIENT_SELECTION_RULES:\n- This transcript contains more than one audition client/candidate.\n- Return JSON for exactly one requested client only.\n- Do not mix stories, answers, business details, achievements, quotes, mission points, or personal background from another client.\n- If TARGET_CLIENT_NAME is provided, use only that named client's story and details.\n- If TARGET_CLIENT_NAME is not provided, identify distinct clients in transcript order and use only TARGET_CLIENT_POSITION.\n- If the requested client's details cannot be separated confidently, still return the best safe JSON you can, but add a concise warning telling the editor to verify the client separation.\n- Keep the same JSON shape and same V2 content quality as a normal single-client transcript.\n\nTRANSCRIPT:\n${transcript}`;\n})() }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "<see extract-v2-branded-reality-profile-system-prompt.txt>"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Clean V2 Transcript": {
+      "main": [
+        [
+          {
+            "node": "V2 Branded Reality?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "V2 Branded Reality?": {
+      "main": [
+        [
+          {
+            "node": "Extract V2 Branded Profile JSON",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "V2 Reality Show?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract V2 Branded Profile JSON": {
+      "main": [
+        [
+          {
+            "node": "Build V2 Letter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "V2 Sonnet 4.6 Primary Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extract V2 Conditional Approval JSON",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Refine V2 Draft JSON",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Extract V2 Reality Profile JSON",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Extract V2 Branded Profile JSON",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "V2 Haiku 4.5 Fallback Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extract V2 Conditional Approval JSON",
+            "type": "ai_languageModel",
+            "index": 1
+          },
+          {
+            "node": "Refine V2 Draft JSON",
+            "type": "ai_languageModel",
+            "index": 1
+          },
+          {
+            "node": "Extract V2 Reality Profile JSON",
+            "type": "ai_languageModel",
+            "index": 1
+          },
+          {
+            "node": "Extract V2 Branded Profile JSON",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  }
+}

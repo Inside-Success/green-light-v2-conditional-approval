@@ -9,7 +9,11 @@ if (asyncJobId) {
 }
 const raw = String(body.content || body.transcript || '').trim();
 const rawShowType = String(body.show_type || body.showType || 'normal');
-const showType = /reality/i.test(rawShowType)
+const showType = /mansion/i.test(rawShowType)
+  ? 'mansion'
+  : /island/i.test(rawShowType)
+  ? 'island'
+  : /reality/i.test(rawShowType)
   ? 'reality'
   : (rawShowType.toLowerCase().includes('nl') || /next\s*level\s*ceo/i.test(rawShowType) ? 'nlceo' : 'normal');
 const deadlineText = String(body.deadline_text || body.deadlineText || 'Sunday 11.59pm EST').trim();
