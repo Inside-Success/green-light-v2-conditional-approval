@@ -196,7 +196,7 @@ if (showType === "mansion" || showType === "island") {
   };
   const IMAGES = {
     fame: imageSpec("fame", "content-production.jpg", 540),
-    mediaPack: imageSpec("mediaPack", "media-pack.jpg", 540),
+    mediaPack: imageSpec("mediaPack", "media-pack.jpg", 500), // 14 tiles: 500pt wide (497pt tall) so the page keeps room for the paragraph after the image
     coprod: imageSpec("coprod", "co-production-model.png", 520),
   };
   const MAJOR = new Set([
