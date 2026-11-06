@@ -176,14 +176,14 @@ if (showType === "mansion" || showType === "island") {
       title: "MANSION OF MONEY TV", site: "www.mansionofmoneytv.com", assets: "mansion",
       headFont: "Cinzel", bodyFont: "Open Sans", headColor: rgb("CE973D"), subColor: rgb("CE973D"),
       subFont: "Open Sans", subSize: 13, subBold: true, titleSize: 26, subtitleColor: rgb("0A0A0A"),
-      images: { fame: [1400, 954], mediaPack: [2105, 1668], coprod: [1500, 1261] },
+      images: { fame: [1400, 954], mediaPack: [2105, 2092], coprod: [1500, 1261] },
       mediaKitLink: "View the Mansion of Money Media Pack",
     },
     island: {
       title: "ENTREPRENEURS ISLAND TV", site: "www.entrepreneursislandtv.com", assets: "island",
       headFont: "Fjalla One", bodyFont: "Plus Jakarta Sans", headColor: rgb("015FBC"), subColor: rgb("068EB0"),
       subFont: "Fjalla One", subSize: 16, subBold: false, titleSize: 32, subtitleColor: rgb("068EB0"),
-      images: { fame: [1400, 920], mediaPack: [2105, 1668], coprod: [1500, 1261] },
+      images: { fame: [1400, 920], mediaPack: [2105, 2092], coprod: [1500, 1261] },
       mediaKitLink: "View the Entrepreneurs Island Media Pack",
     },
   };
