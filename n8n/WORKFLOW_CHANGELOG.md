@@ -1,5 +1,23 @@
 # V2 Workflow Changelog
 
+## 2026-11-06 - Branded letters follow the updated design docs; dashboard mismatch warning only on clear contradictions
+
+Production workflow `TfpAYWYtDpOLWo2M`. Backup before change: `n8n/backups/TfpAYWYtDpOLWo2M-before-branded-design-refresh-2026-11-06T17-55-02Z.json`. Normal, NLCEO and Reality untouched and proven byte-identical by the harness (100 checks).
+
+Source: Boris's updated Mansion / Island design docs (re-exported 2026-11-06) and Adedokun's Loom about the variant warning (Slack DM).
+
+Workflow changes (nodes `Build V2 Letter`, `Prepare V2 Google Doc Body`, `Refine V2 Draft JSON` prompt; mansion/island branches only):
+
+- Headlines page removed (heading, page break and composite image), so a branded letter is 8 pages instead of 9.
+- Opening sentence now ends "a strong fit for an upcoming reality show."; approval line now "continue through the casting process." (both dropped the "Inside Success TV" mention per the docs).
+- NEXT STEP resources: the two-item list (Rudy episode + Inside Success media pack) is replaced by "Before your second call, please review the media kit:" and one link line "🔗 View the Mansion of Money Media Pack" / "🔗 View the Entrepreneurs Island Media Pack" (13pt, bold, underlined, brand colour, like the docs). The link opens the show's media kit hosted with the other assets (`.../workflow-assets/<show>/media-kit.jpg`, downloaded from Rudy's Dropbox links so nothing depends on Dropbox).
+- Assets refreshed from the updated docs: new Island header and one-story graphic, two swapped media-pack tiles per show; `headlines.jpg` deleted.
+- Refine prompt: the fixed-copy list no longer mentions the headlines heading. Condense step, thresholds and the last-resort cap are unchanged.
+
+Dashboard (`src/App.jsx`): the "Transcript appears to mention X, but the selected variant is Y" warning fired on correct selections because most calls mention several shows (it warned on 80 of 90 real Reality selections and 10 of 49 real Mansion/Island selections). New rule `getVariantWarning`: Mansion/Island warn only when the transcript never mentions the selected show in any form (even just "the mansion" / "the island") and does name another show or Next Level CEO; Reality accepts any reality-show mention and warns only on a Next Level CEO transcript; Normal and NLCEO keep the old behaviour. Replayed over 233 unique real transcripts: 0 warnings for correct branded/reality selections, Normal/NLCEO unchanged, and wrong selections still flagged wherever the transcript names another show.
+
+Verification: harness (byte-identity for the three live variants; branded structure, 3 images, 4 page breaks, new sentences, single media-kit link with exact UTF-16 range); Vercel assets checked live before the n8n deploy; live Mansion and Island generate + save + refine from real transcripts compared page by page with the design docs; MCP validation 0 errors / 0 warnings.
+
 ## 2026-11-05 - Mansion of Money and Entrepreneurs Island variants
 
 Production workflow: `Green Light V2 - Conditional Casting Approval` (`TfpAYWYtDpOLWo2M`). Two new show types `mansion` and `island`; Normal, NLCEO and Reality untouched and proven byte-identical (harness: Clean, Build, Save, Formatter, Refine payload, Guardrails, old live code vs new).

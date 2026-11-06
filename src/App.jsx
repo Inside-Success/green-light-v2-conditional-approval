@@ -86,9 +86,11 @@ const SHOW_TYPE_LABELS = {
 };
 const SHOW_TYPES_WITHOUT_DEADLINE = ["nlceo", "mansion", "island"];
 const MANSION_PATTERN = /\bmansion\s+of\s+money\b/i;
-const ISLAND_PATTERN = /\bentrepreneurs?\s+island\b/i;
+const ISLAND_PATTERN = /\bentrepreneur(?:'|’)?s?\s+island\b/i;
 const MANSION_LOOSE_PATTERN = /\bmansion\b/i;
 const ISLAND_LOOSE_PATTERN = /\bisland\b/i;
+// The Normal-show pitch name-drops "Love Island", so it must not count as an Island mention.
+const LOVE_ISLAND_PATTERN = /\blove\s+island\b/gi;
 const NLCEO_PATTERN = /\bnext\s*level\s*ceo\b|\bnlceo\b/i;
 const REALITY_SHOW_NAME_PATTERN =
   /\b(business race|flipping for fortune|startup lockdown|millionaire match house|love or business)\b/i;
@@ -101,7 +103,7 @@ function getTranscriptMentions(transcript) {
     mansion: MANSION_PATTERN.test(value),
     mansionLoose: MANSION_LOOSE_PATTERN.test(value),
     island: ISLAND_PATTERN.test(value),
-    islandLoose: ISLAND_LOOSE_PATTERN.test(value),
+    islandLoose: ISLAND_LOOSE_PATTERN.test(value.replace(LOVE_ISLAND_PATTERN, " ")),
     otherRealityShow: REALITY_SHOW_NAME_PATTERN.test(value),
     genericReality: (value.match(REALITY_GENERIC_PATTERN) || []).length >= 2,
   };
@@ -135,7 +137,8 @@ function describeShowSignal(signal) {
 // Only warn on a clear contradiction between the transcript and the selected variant, so the
 // warning means "wrong transcript pasted" rather than "the call also mentioned another show".
 // - Mansion / Island: fine when the transcript mentions the selected show in any form (even just
-//   "the mansion" / "the island"); warn only when it never does AND clearly names another show.
+//   "the mansion" / "the island"); warn only when it never does AND the transcript points at another
+//   show (the other branded show in any form, a named reality show, or Next Level CEO).
 // - Reality: fine with any reality-show mention (incl. Mansion / Island); warn only on Next Level CEO.
 // - Normal / Next Level CEO: unchanged, warn whenever the transcript signal differs.
 function getVariantWarning(transcript, showType) {
@@ -152,8 +155,8 @@ function getVariantWarning(transcript, showType) {
     if (mentionsSelected) {
       return "";
     }
-    if (showType === "mansion" && mentions.island) return warn("Entrepreneurs Island");
-    if (showType === "island" && mentions.mansion) return warn("Mansion of Money");
+    if (showType === "mansion" && (mentions.island || mentions.islandLoose)) return warn("Entrepreneurs Island");
+    if (showType === "island" && (mentions.mansion || mentions.mansionLoose)) return warn("Mansion of Money");
     if (mentions.otherRealityShow) return warn("a different reality show");
     if (mentions.nlceo) return warn("Next Level CEO");
     return "";
