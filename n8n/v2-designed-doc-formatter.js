@@ -176,17 +176,18 @@ if (showType === "mansion" || showType === "island") {
       title: "MANSION OF MONEY TV", site: "www.mansionofmoneytv.com", assets: "mansion",
       headFont: "Cinzel", bodyFont: "Open Sans", headColor: rgb("CE973D"), subColor: rgb("CE973D"),
       subFont: "Open Sans", subSize: 13, subBold: true, titleSize: 26, subtitleColor: rgb("0A0A0A"),
-      images: { fame: [1400, 954], mediaPack: [2105, 1668], coprod: [1500, 1261], headlines: [1576, 925] },
+      images: { fame: [1400, 954], mediaPack: [2105, 1668], coprod: [1500, 1261] },
+      mediaKitLink: "View the Mansion of Money Media Pack",
     },
     island: {
       title: "ENTREPRENEURS ISLAND TV", site: "www.entrepreneursislandtv.com", assets: "island",
       headFont: "Fjalla One", bodyFont: "Plus Jakarta Sans", headColor: rgb("015FBC"), subColor: rgb("068EB0"),
       subFont: "Fjalla One", subSize: 16, subBold: false, titleSize: 32, subtitleColor: rgb("068EB0"),
-      images: { fame: [1400, 937], mediaPack: [2105, 1668], coprod: [1500, 1261], headlines: [1576, 925] },
+      images: { fame: [1400, 920], mediaPack: [2105, 1668], coprod: [1500, 1261] },
+      mediaKitLink: "View the Entrepreneurs Island Media Pack",
     },
   };
   const brand = BRANDS[showType];
-  const LINK_COLOR = rgb("015FBC");
   const GREY = rgb("999999");
   const assetBase = `${ASSET_BASE_URL}/${brand.assets}`;
   const imageSpec = (key, file, widthPt) => {
@@ -197,15 +198,13 @@ if (showType === "mansion" || showType === "island") {
     fame: imageSpec("fame", "content-production.jpg", 540),
     mediaPack: imageSpec("mediaPack", "media-pack.jpg", 540),
     coprod: imageSpec("coprod", "co-production-model.png", 520),
-    headlines: imageSpec("headlines", "headlines.jpg", 540),
   };
   const MAJOR = new Set([
     "CONGRATULATIONS!", "YOUR COMPETITIVE PROFILE", "DONE-FOR-YOU CONTENT PRODUCTION", "MEDIA & CONTENT OPPORTUNITIES",
-    "MEDIA PACK", "OUR UNIQUE CO-PRODUCTION MODEL", "OUR REALITY SHOWS ARE HIGHLY ANTICIPATED AND ALREADY MAKING HEADLINES", "NEXT STEP ➡️",
+    "MEDIA PACK", "OUR UNIQUE CO-PRODUCTION MODEL", "NEXT STEP ➡️",
   ]);
   const PAGE_BREAK_BEFORE = new Set([
-    "MEDIA & CONTENT OPPORTUNITIES", "MEDIA PACK", "OUR UNIQUE CO-PRODUCTION MODEL",
-    "OUR REALITY SHOWS ARE HIGHLY ANTICIPATED AND ALREADY MAKING HEADLINES", "NEXT STEP ➡️",
+    "MEDIA & CONTENT OPPORTUNITIES", "MEDIA PACK", "OUR UNIQUE CO-PRODUCTION MODEL", "NEXT STEP ➡️",
   ]);
   const SUB = new Set(["BUSINESS EXPERIENCE", "COMPETITIVE EDGE", "PERSONALITY", "THE WILDCARD"]);
   const BOLD_CHECKS = new Set([
@@ -217,7 +216,6 @@ if (showType === "mansion" || showType === "island") {
     "✅ A legacy asset": "fame",
     "MEDIA PACK": "mediaPack",
     "See how our streamlined co-production model compares to traditional television casting and production.": "coprod",
-    "OUR REALITY SHOWS ARE HIGHLY ANTICIPATED AND ALREADY MAKING HEADLINES": "headlines",
   };
   const DISCLAIMER = "Results vary. Participation does not guarantee specific business outcomes, revenue, publicity, media placements or future opportunities.";
 
@@ -347,9 +345,8 @@ if (showType === "mansion" || showType === "island") {
     } else if (bLen === 0) {
       // blank spacer bLine
     } else if (MAJOR.has(bLine)) {
-      const isHeadlines = bLine.startsWith("OUR REALITY SHOWS ARE HIGHLY");
-      styleFont(cursor, cursor + bLen, brand.headFont, isHeadlines ? 22 : 22, 400, { foregroundColor: brand.headColor });
-      stylePara(cursor, bParaEnd, { alignment: isHeadlines ? "CENTER" : "START", ...BRAND_INDENT, spaceAbove: pt(16), spaceBelow: pt(8), keepWithNext: true }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
+      styleFont(cursor, cursor + bLen, brand.headFont, 22, 400, { foregroundColor: brand.headColor });
+      stylePara(cursor, bParaEnd, { alignment: "START", ...BRAND_INDENT, spaceAbove: pt(16), spaceBelow: pt(8), keepWithNext: true }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
       if (PAGE_BREAK_BEFORE.has(bLine)) brandedInserts.push({ index: cursor, kind: "pageBreak" });
     } else if (SUB.has(bLine)) {
       styleFont(cursor, cursor + bLen, brand.subFont, brand.subSize, brand.subBold ? 700 : 400, { foregroundColor: brand.subColor });
@@ -359,14 +356,11 @@ if (showType === "mansion" || showType === "island") {
       stylePara(cursor, bParaEnd, { ...BRAND_BULLET, spaceAbove: pt(0), spaceBelow: pt(4) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
     } else if (/^•/.test(bLine)) {
       stylePara(cursor, bParaEnd, { ...BRAND_BULLET, spaceAbove: pt(0), spaceBelow: pt(3) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
-    } else if (/^(1\. WATCH ONE EPISODE:|2\. REVIEW THE MEDIA KIT:)/.test(bLine)) {
-      const labelLen = bLine.indexOf(":") + 1;
-      styleFont(cursor, cursor + labelLen, brand.headFont, 13, brand.subBold ? 700 : 400, { foregroundColor: brand.subColor });
-      for (const resLink of [{ label: RUDY_EPISODE_LINK_TEXT, url: RUDY_EPISODE_URL }, { label: MEDIA_PACK_LINK_TEXT, url: MEDIA_PACK_URL }]) {
-        const bOffset = bLine.indexOf(resLink.label);
-        if (bOffset === -1) continue;
-        styleText(cursor + bOffset, cursor + bOffset + resLink.label.length, { link: { url: resLink.url }, underline: true, bold: true, foregroundColor: LINK_COLOR }, "link,underline,bold,foregroundColor");
-      }
+    } else if (bLine.endsWith(brand.mediaKitLink)) {
+      // "🔗 View the <Show> Media Pack": the link text opens the show's media kit hosted next to the other assets.
+      const linkStart = cursor + bLine.indexOf(brand.mediaKitLink);
+      styleFont(cursor, cursor + bLen, brand.bodyFont, 13, 400);
+      styleText(linkStart, cursor + bLen, { link: { url: `${assetBase}/media-kit.jpg` }, underline: true, bold: true, foregroundColor: brand.subColor }, "link,underline,bold,foregroundColor");
       stylePara(cursor, bParaEnd, { ...BRAND_INDENT, spaceAbove: pt(6), spaceBelow: pt(6) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
     } else if (/^Before your second call/.test(bLine) || /^(It has the potential to become:|These may include:|During your next call we will discuss:)$/.test(bLine)) {
       styleFont(cursor, cursor + bLen, brand.bodyFont, FONT_BODY_SIZE, 700);

@@ -355,8 +355,8 @@ if (showType === 'mansion' || showType === 'island') {
   // Branded reality letters (Mansion of Money, Entrepreneurs Island), added 2026-11-05.
   // Same four AI slots as the reality letter, trimmed fixed copy per the design docs.
   const BRANDS = {
-    mansion: { title: 'MANSION OF MONEY TV', docPrefix: 'Mansion of Money TV', site: 'www.mansionofmoneytv.com' },
-    island: { title: 'ENTREPRENEURS ISLAND TV', docPrefix: 'Entrepreneurs Island TV', site: 'www.entrepreneursislandtv.com' },
+    mansion: { title: 'MANSION OF MONEY TV', docPrefix: 'Mansion of Money TV', site: 'www.mansionofmoneytv.com', mediaKitLink: 'View the Mansion of Money Media Pack' },
+    island: { title: 'ENTREPRENEURS ISLAND TV', docPrefix: 'Entrepreneurs Island TV', site: 'www.entrepreneursislandtv.com', mediaKitLink: 'View the Entrepreneurs Island Media Pack' },
   };
   const brand = BRANDS[showType];
   // One-page ceiling for the Competitive Profile (measured on real letters: ~260 words overflowed,
@@ -470,7 +470,7 @@ if (showType === 'mansion' || showType === 'island') {
     `Cast Name: ${brandedData.guest_name}`,
     '',
     'CONGRATULATIONS!',
-    'After reviewing your application, business background, accomplishments, personality, and overall fit, our casting team believes you could be a strong fit for an upcoming reality show on Inside Success TV.',
+    'After reviewing your application, business background, accomplishments, personality, and overall fit, our casting team believes you could be a strong fit for an upcoming reality show.',
     'Our reality shows feature successful entrepreneurs, business owners, founders, and high-performing personalities who are willing to put their experience, decision-making, leadership, and business skills to the test.',
     '✅ A meaningful story',
     '✅ Genuine expertise',
@@ -480,7 +480,7 @@ if (showType === 'mansion' || showType === 'island') {
     '✅ An interesting background or perspective',
     '✅ The potential to create memorable television and inspire others',
     'Based on our initial review, we believe you have several of the qualities our production team is looking for.',
-    'As a result, you have received conditional approval to continue through the Inside Success TV casting process.',
+    'As a result, you have received conditional approval to continue through the casting process.',
     '',
     'YOUR COMPETITIVE PROFILE',
     'Based on what we learned during the application process, our casting team currently sees several qualities that could make you an interesting addition to an upcoming production.',
@@ -533,8 +533,6 @@ if (showType === 'mansion' || showType === 'island') {
     'OUR UNIQUE CO-PRODUCTION MODEL',
     'See how our streamlined co-production model compares to traditional television casting and production.',
     '',
-    'OUR REALITY SHOWS ARE HIGHLY ANTICIPATED AND ALREADY MAKING HEADLINES',
-    '',
     'NEXT STEP ➡️',
     'Your application has now advanced to the next stage of casting.',
     'During your next call we will discuss:',
@@ -549,9 +547,8 @@ if (showType === 'mansion' || showType === 'island') {
     '• Whether this is the right fit for both parties',
     'Please ensure you attend your next scheduled call.',
     'Failure to attend may result in your application being withdrawn from the current casting cycle.',
-    'Before your second call, please review these two resources:',
-    "1. WATCH ONE EPISODE: Watch Rudy Mawer's Inside Success episode",
-    '2. REVIEW THE MEDIA KIT: View the Inside Success Media Pack',
+    'Before your second call, please review the media kit:',
+    `🔗 ${brand.mediaKitLink}`,
     '',
     brand.site,
     'Results vary. Participation does not guarantee specific business outcomes, revenue, publicity, media placements or future opportunities.',

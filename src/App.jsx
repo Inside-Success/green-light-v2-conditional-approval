@@ -87,31 +87,38 @@ const SHOW_TYPE_LABELS = {
 const SHOW_TYPES_WITHOUT_DEADLINE = ["nlceo", "mansion", "island"];
 const MANSION_PATTERN = /\bmansion\s+of\s+money\b/i;
 const ISLAND_PATTERN = /\bentrepreneurs?\s+island\b/i;
+const MANSION_LOOSE_PATTERN = /\bmansion\b/i;
+const ISLAND_LOOSE_PATTERN = /\bisland\b/i;
+const NLCEO_PATTERN = /\bnext\s*level\s*ceo\b|\bnlceo\b/i;
 const REALITY_SHOW_NAME_PATTERN =
   /\b(business race|flipping for fortune|startup lockdown|millionaire match house|love or business)\b/i;
 const REALITY_GENERIC_PATTERN = /\breality\s+(?:show|series|tv|television|competition)\b/gi;
 
-function getTranscriptShowSignal(transcript) {
+function getTranscriptMentions(transcript) {
   const value = transcript.toLowerCase();
-  if (/\bnext\s*level\s*ceo\b/.test(value) || /\bnlceo\b/.test(value)) {
+  return {
+    nlceo: NLCEO_PATTERN.test(value),
+    mansion: MANSION_PATTERN.test(value),
+    mansionLoose: MANSION_LOOSE_PATTERN.test(value),
+    island: ISLAND_PATTERN.test(value),
+    islandLoose: ISLAND_LOOSE_PATTERN.test(value),
+    otherRealityShow: REALITY_SHOW_NAME_PATTERN.test(value),
+    genericReality: (value.match(REALITY_GENERIC_PATTERN) || []).length >= 2,
+  };
+}
+
+function getTranscriptShowSignal(transcript) {
+  const mentions = getTranscriptMentions(transcript);
+  if (mentions.nlceo) {
     return "nlceo";
   }
-  const mentionsMansion = MANSION_PATTERN.test(value);
-  const mentionsIsland = ISLAND_PATTERN.test(value);
-  if (mentionsMansion && !mentionsIsland) {
+  if (mentions.mansion && !mentions.island) {
     return "mansion";
   }
-  if (mentionsIsland && !mentionsMansion) {
+  if (mentions.island && !mentions.mansion) {
     return "island";
   }
-  if (mentionsMansion && mentionsIsland) {
-    return "reality";
-  }
-  if (REALITY_SHOW_NAME_PATTERN.test(value)) {
-    return "reality";
-  }
-  const genericRealityMentions = value.match(REALITY_GENERIC_PATTERN);
-  if (genericRealityMentions && genericRealityMentions.length >= 2) {
+  if ((mentions.mansion && mentions.island) || mentions.otherRealityShow || mentions.genericReality) {
     return "reality";
   }
   return "normal";
@@ -123,6 +130,41 @@ function describeShowSignal(signal) {
   if (signal === "island") return "Entrepreneurs Island";
   if (signal === "reality") return "a reality show";
   return "a normal show";
+}
+
+// Only warn on a clear contradiction between the transcript and the selected variant, so the
+// warning means "wrong transcript pasted" rather than "the call also mentioned another show".
+// - Mansion / Island: fine when the transcript mentions the selected show in any form (even just
+//   "the mansion" / "the island"); warn only when it never does AND clearly names another show.
+// - Reality: fine with any reality-show mention (incl. Mansion / Island); warn only on Next Level CEO.
+// - Normal / Next Level CEO: unchanged, warn whenever the transcript signal differs.
+function getVariantWarning(transcript, showType) {
+  if (!transcript.trim()) {
+    return "";
+  }
+  const mentions = getTranscriptMentions(transcript);
+  const selectedLabel = SHOW_TYPE_LABELS[showType] || "Normal";
+  const warn = (subject) => `Transcript appears to mention ${subject}, but the selected variant is ${selectedLabel}.`;
+  if (showType === "mansion" || showType === "island") {
+    const mentionsSelected = showType === "mansion"
+      ? mentions.mansion || mentions.mansionLoose
+      : mentions.island || mentions.islandLoose;
+    if (mentionsSelected) {
+      return "";
+    }
+    if (showType === "mansion" && mentions.island) return warn("Entrepreneurs Island");
+    if (showType === "island" && mentions.mansion) return warn("Mansion of Money");
+    if (mentions.otherRealityShow) return warn("a different reality show");
+    if (mentions.nlceo) return warn("Next Level CEO");
+    return "";
+  }
+  if (showType === "reality") {
+    const mentionsAnyRealityShow =
+      mentions.mansion || mentions.island || mentions.otherRealityShow || mentions.genericReality;
+    return mentions.nlceo && !mentionsAnyRealityShow ? warn("Next Level CEO") : "";
+  }
+  const showSignal = getTranscriptShowSignal(transcript);
+  return showSignal !== showType ? warn(describeShowSignal(showSignal)) : "";
 }
 
 function StatusPill({ status }) {
@@ -207,15 +249,10 @@ export default function App() {
     [deadlineText, multiClientEnabled, multiClientLetterCount, showType, targetClientName, transcript],
   );
 
-  const showSignal = useMemo(
-    () => getTranscriptShowSignal(transcript),
-    [transcript],
+  const variantWarning = useMemo(
+    () => getVariantWarning(transcript, showType),
+    [showType, transcript],
   );
-
-  const variantWarning =
-    transcript.trim() && showSignal !== showType
-      ? `Transcript appears to mention ${describeShowSignal(showSignal)}, but the selected variant is ${SHOW_TYPE_LABELS[showType] || "Normal"}.`
-      : "";
 
   useEffect(() => {
     const activeDraft = drafts[activeDraftIndex] || null;
