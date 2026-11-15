@@ -550,6 +550,10 @@ if (showType === 'mansion' || showType === 'island') {
     'Before your second call, please review the media kit:',
     `🔗 ${brand.mediaKitLink}`,
     '',
+    // Cohort deadline box (design docs of 2026-11-13). Fixed wording, same for both shows.
+    'CONDITIONAL APPROVAL EXPIRES SUNDAY 11:59 PM',
+    'After this deadline your application may need to be re-reviewed by casting before being reconsidered for a future season.',
+    '',
     brand.site,
     'Results vary. Participation does not guarantee specific business outcomes, revenue, publicity, media placements or future opportunities.',
   ].join('\n').replace(/\n{3,}/g, '\n\n').trim();

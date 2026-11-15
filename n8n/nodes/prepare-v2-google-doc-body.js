@@ -180,6 +180,7 @@ if (showType === "mansion" || showType === "island") {
       headSizes: { "CONGRATULATIONS!": 18, "YOUR COMPETITIVE PROFILE": 24, "DONE-FOR-YOU CONTENT PRODUCTION": 20, "MEDIA & CONTENT OPPORTUNITIES": 21, "MEDIA PACK": 21, "OUR UNIQUE CO-PRODUCTION MODEL": 20, "NEXT STEP ➡️": 20 },
       images: { fame: [1400, 954], mediaPack: [2105, 2092], coprod: [1500, 1261] },
       mediaKitLink: "View the Mansion of Money Media Pack",
+      deadlineFill: rgb("000000"), deadlineBorder: rgb("CE973D"),
     },
     island: {
       title: "ENTREPRENEURS ISLAND TV", site: "www.entrepreneursislandtv.com", assets: "island",
@@ -190,6 +191,7 @@ if (showType === "mansion" || showType === "island") {
       headSizes: { "CONGRATULATIONS!": 21, "YOUR COMPETITIVE PROFILE": 24, "DONE-FOR-YOU CONTENT PRODUCTION": 24, "MEDIA & CONTENT OPPORTUNITIES": 24, "MEDIA PACK": 25, "OUR UNIQUE CO-PRODUCTION MODEL": 24, "NEXT STEP ➡️": 20 },
       images: { fame: [1400, 920], mediaPack: [2105, 2092], coprod: [1500, 1261] },
       mediaKitLink: "View the Entrepreneurs Island Media Pack",
+      deadlineFill: rgb("015FBC"), deadlineBorder: rgb("F1C232"),
     },
   };
   const brand = BRANDS[showType];
@@ -202,7 +204,7 @@ if (showType === "mansion" || showType === "island") {
   const IMAGES = {
     fame: imageSpec("fame", "content-production.jpg", 580),
     mediaPack: imageSpec("mediaPack", "media-pack.jpg", 530), // 14-tile grid, 3 x 180pt tiles in the design
-    coprod: imageSpec("coprod", "co-production-model.png", 550), // design runs it edge to edge; widest that keeps the page to one page for both brands (Cinzel/Open Sans lines are taller, and the page-break paragraph needs a line too)
+    coprod: imageSpec("coprod", "co-production-model.png", 570), // design runs it edge to edge; 570 leaves about 16pt under it on its page for both brands (was 550 while the page-break character still held a full line there)
   };
   const MAJOR = new Set([
     "CONGRATULATIONS!", "YOUR COMPETITIVE PROFILE", "DONE-FOR-YOU CONTENT PRODUCTION", "MEDIA & CONTENT OPPORTUNITIES",
@@ -224,6 +226,9 @@ if (showType === "mansion" || showType === "island") {
     "See how our streamlined co-production model compares to traditional television casting and production.": "coprod",
   };
   const DISCLAIMER = "Results vary. Participation does not guarantee specific business outcomes, revenue, publicity, media placements or future opportunities.";
+  // Cohort deadline (design docs of 2026-11-13): a banner on every page and a box at the end of NEXT STEP.
+  const DEADLINE_HEAD = "CONDITIONAL APPROVAL EXPIRES SUNDAY 11:59 PM";
+  const DEADLINE_BODY = "After this deadline your application may need to be re-reviewed by casting before being reconsidered for a future season.";
 
   const rawLines = normalizeText(built.letter_text || built.preview || "").split("\n").map((line) => line.replace(/[ \t]+$/g, ""));
   const congratsAt = rawLines.findIndex((line) => /^CONGRATULATIONS!?$/i.test(line.trim()));
@@ -231,6 +236,16 @@ if (showType === "mansion" || showType === "island") {
   while (brandedLines.length && (brandedLines[brandedLines.length - 1] === "" || brandedLines[brandedLines.length - 1].toLowerCase() === brand.site || /^Results vary\./i.test(brandedLines[brandedLines.length - 1]))) {
     brandedLines.pop();
   }
+  let deadlineBody = DEADLINE_BODY;
+  const deadlineAt = brandedLines.findIndex((line) => /^CONDITIONAL APPROVAL EXPIRES/i.test(line));
+  if (deadlineAt >= 0) {
+    let deadlineEnd = deadlineAt + 1;
+    const deadlineBodyLines = [];
+    while (deadlineEnd < brandedLines.length && brandedLines[deadlineEnd] !== "") { deadlineBodyLines.push(brandedLines[deadlineEnd]); deadlineEnd += 1; }
+    if (deadlineBodyLines.length) deadlineBody = deadlineBodyLines.join(" ");
+    brandedLines.splice(deadlineAt, deadlineEnd - deadlineAt);
+  }
+  while (brandedLines.length && brandedLines[brandedLines.length - 1] === "") brandedLines.pop();
   const brandedEntries = [];
   for (const rawLine of brandedLines) {
     const entryText = rawLine === "CONGRATULATIONS" ? "CONGRATULATIONS!" : rawLine === "NEXT STEP" ? "NEXT STEP ➡️" : rawLine;
@@ -238,12 +253,16 @@ if (showType === "mansion" || showType === "island") {
     const imageKey = IMAGE_AFTER[entryText];
     if (imageKey) brandedEntries.push({ text: "", kind: "image", image: imageKey });
   }
-  // Drop blank spacer lines that sit right before a page-break heading: they add nothing and, after a
-  // full-page image, they can spill onto a fresh page and leave it empty.
+  // Drop the blank spacer line before every section heading. Before a page-break heading it adds nothing
+  // and can spill onto a fresh page; before a flowing heading it can land alone at the top of the next page
+  // and push that page's content down a line. Flowing headings get the same gap as space above instead,
+  // which a page top ignores.
   for (let i = brandedEntries.length - 2; i >= 0; i -= 1) {
-    if (brandedEntries[i].kind === "text" && brandedEntries[i].text === "" && PAGE_BREAK_BEFORE.has(brandedEntries[i + 1].text)) brandedEntries.splice(i, 1);
+    if (brandedEntries[i].kind === "text" && brandedEntries[i].text === "" && MAJOR.has(brandedEntries[i + 1].text)) brandedEntries.splice(i, 1);
   }
-  brandedEntries.push({ text: "", kind: "text" });
+  brandedEntries.push({ text: DEADLINE_HEAD, kind: "deadlineHead" });
+  brandedEntries.push({ text: "", kind: "deadlineGap" });
+  brandedEntries.push({ text: deadlineBody, kind: "deadlineBody" });
   brandedEntries.push({ text: DISCLAIMER, kind: "disclaimer" });
   const bodyContent = brandedEntries.map((entry) => entry.text).join("\n");
   if (bodyContent.length < 500) throw new Error("Edited V2 letter body is too short.");
@@ -261,7 +280,7 @@ if (showType === "mansion" || showType === "island") {
         pageSize: { width: { magnitude: 612, unit: "PT" }, height: { magnitude: 792, unit: "PT" } },
         marginHeader: { magnitude: 0, unit: "PT" },
         marginTop: { magnitude: 130, unit: "PT" },
-        marginBottom: { magnitude: 54, unit: "PT" },
+        marginBottom: { magnitude: 42, unit: "PT" }, // was 54 before the deadline banner made the header taller
         marginLeft: { magnitude: 0, unit: "PT" },
         marginRight: { magnitude: 0, unit: "PT" },
         marginFooter: { magnitude: 0, unit: "PT" },
@@ -270,12 +289,21 @@ if (showType === "mansion" || showType === "island") {
     },
   });
   const headerUri = `${assetBase}/header.jpg`;
+  const bannerUri = `${assetBase}/deadline-banner.png`;
   if (headerId) {
     brandedRequests.push({
       insertInlineImage: {
         location: { segmentId: headerId, index: 0 },
         uri: headerUri,
         objectSize: { width: { magnitude: 612, unit: "PT" }, height: { magnitude: 122, unit: "PT" } },
+      },
+    });
+    // Deadline banner, inserted in front of the header image so it sits on its own line above it.
+    brandedRequests.push({
+      insertInlineImage: {
+        location: { segmentId: headerId, index: 0 },
+        uri: bannerUri,
+        objectSize: { width: { magnitude: 612, unit: "PT" }, height: { magnitude: 31, unit: "PT" } },
       },
     });
     brandedRequests.push({
@@ -350,16 +378,33 @@ if (showType === "mansion" || showType === "island") {
     } else if (entry.kind === "disclaimer") {
       styleFont(cursor, cursor + bLen, brand.bodyFont, 10, 400, { foregroundColor: GREY });
       stylePara(cursor, bParaEnd, { alignment: "CENTER", indentStart: pt(96), indentFirstLine: pt(96), indentEnd: pt(96), spaceAbove: pt(18), spaceBelow: pt(10), lineSpacing: 105 }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,lineSpacing");
+    } else if (entry.kind === "deadlineHead" || entry.kind === "deadlineGap" || entry.kind === "deadlineBody") {
+      // Deadline box: three shaded paragraphs sharing one border (heading, 9pt gap, body), 430pt wide from the text margin as in the design.
+      const isHead = entry.kind === "deadlineHead", isBody = entry.kind === "deadlineBody";
+      const boxFont = "Plus Jakarta Sans";
+      if (entry.kind === "deadlineGap") styleText(cursor, bParaEnd, { bold: false, fontSize: pt(9), weightedFontFamily: { fontFamily: boxFont, weight: 400 } }, "bold,fontSize,weightedFontFamily");
+      else styleFont(cursor, cursor + bLen, boxFont, isHead ? 14 : 12, isHead ? 700 : 400, { foregroundColor: isHead ? rgb("F1C232") : rgb("FFFFFF") });
+      const boxEdge = { color: brand.deadlineBorder, width: pt(3), padding: pt(14.4), dashStyle: "SOLID" };
+      const boxSide = { ...boxEdge, padding: pt(12.4) }; // puts the outer edge at 71pt / 503pt, where the design's table border sits
+      const boxNoEdge = { color: brand.deadlineBorder, width: pt(0), padding: pt(0), dashStyle: "SOLID" };
+      stylePara(cursor, bParaEnd, {
+        alignment: "START", indentStart: pt(86.4), indentFirstLine: pt(86.4), indentEnd: pt(124.6), lineSpacing: 100,
+        spaceAbove: pt(isHead ? 12 : 0), spaceBelow: pt(0), shading: { backgroundColor: brand.deadlineFill },
+        borderTop: isHead ? boxEdge : boxNoEdge, borderBottom: isBody ? boxEdge : boxNoEdge, borderLeft: boxSide, borderRight: boxSide,
+        keepWithNext: !isBody, keepLinesTogether: true,
+      }, "alignment,indentStart,indentFirstLine,indentEnd,lineSpacing,spaceAbove,spaceBelow,shading,borderTop,borderBottom,borderLeft,borderRight,keepWithNext,keepLinesTogether");
     } else if (bLen === 0) {
       // blank spacer bLine
     } else if (MAJOR.has(bLine)) {
       const centred = CENTERED.has(bLine);
       styleHead(cursor, cursor + bLen, brand.headSizes[bLine] || 22, bLine === "NEXT STEP ➡️" ? brand.nextStepColor : brand.headColor);
-      stylePara(cursor, bParaEnd, { alignment: centred ? "CENTER" : "START", ...BRAND_INDENT, spaceAbove: pt(centred ? 0 : 16), spaceBelow: pt(8), keepWithNext: true }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
+      // A page-break heading starts on the previous page (the break is its first character), so its space above would be spent there.
+      stylePara(cursor, bParaEnd, { alignment: centred ? "CENTER" : "START", ...BRAND_INDENT, spaceAbove: pt(centred || PAGE_BREAK_BEFORE.has(bLine) ? 0 : bLine === "CONGRATULATIONS!" ? 16 : 35), spaceBelow: pt(8), keepWithNext: true }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
       if (PAGE_BREAK_BEFORE.has(bLine)) brandedInserts.push({ index: cursor, kind: "pageBreak" });
     } else if (SUB.has(bLine)) {
       styleFont(cursor, cursor + bLen, brand.subFont, brand.subSize, brand.subBold ? 700 : 400, { foregroundColor: brand.subColor });
-      stylePara(cursor, bParaEnd, { ...BRAND_INDENT, spaceAbove: pt(12), spaceBelow: pt(4), keepWithNext: true }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
+      // 8/2 (was 12/4): gives the Competitive Profile page back the room the deadline banner takes, so it holds as many lines as before.
+      stylePara(cursor, bParaEnd, { ...BRAND_INDENT, spaceAbove: pt(8), spaceBelow: pt(2), keepWithNext: true }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
     } else if (/^✅/.test(bLine)) {
       if (BOLD_CHECKS.has(bLine)) styleFont(cursor, cursor + bLen, brand.bodyFont, FONT_BODY_SIZE, 700);
       stylePara(cursor, bParaEnd, { ...BRAND_BULLET, spaceAbove: pt(0), spaceBelow: pt(4) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
@@ -390,6 +435,8 @@ if (showType === "mansion" || showType === "island") {
       brandedRequests.push({ insertInlineImage: { location: { index: op.index }, uri: op.image.uri, objectSize: { width: pt(op.image.width), height: pt(op.image.height) } } });
     } else {
       brandedRequests.push({ insertPageBreak: { location: { index: op.index } } });
+      // The break character carries the heading's font size and would hold a 25-35pt line under a full-page graphic.
+      brandedRequests.push({ updateTextStyle: { range: { startIndex: op.index, endIndex: op.index + 1 }, textStyle: { fontSize: pt(1) }, fields: "fontSize" } });
     }
   }
 
