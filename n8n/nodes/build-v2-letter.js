@@ -366,11 +366,31 @@ if (showType === 'mansion' || showType === 'island') {
   const BRANDED_TOTAL_WORD_BUDGET = 200;
   const brandedWarnings = [];
   const countWords = (value) => String(value || '').split(/\s+/).filter(Boolean).length;
+  // A sentence ends at a full stop, ! or ? (plus any closing quote or bracket) that is followed by a
+  // space or the end of the text. A full stop inside a number or a name ("$3.5 million", "site.com",
+  // "U.S.") is not an end. Every character of the text lands in exactly one sentence, so shortening a
+  // paragraph can only ever remove whole sentences from the end, never text from the middle or start.
+  function splitSentences(text) {
+    const sentences = [];
+    const boundary = /([.!?]+)["')\]\u201D\u2019]*(?:\s+|$)/g;
+    let start = 0;
+    let match;
+    while ((match = boundary.exec(text)) !== null) {
+      const end = match.index + match[0].length;
+      const lastWord = text.slice(start, match.index + match[1].length).split(/\s+/).pop() || '';
+      // "U.S. market", "9 a.m. start": the full stop after an initialism is not treated as an end.
+      if (end < text.length && /[A-Za-z]\.[A-Za-z]/.test(lastWord)) continue;
+      sentences.push(text.slice(start, end));
+      start = end;
+    }
+    if (start < text.length) sentences.push(text.slice(start));
+    return sentences.map((s) => s.trim()).filter(Boolean);
+  }
   // Every natural shortening of a paragraph: whole-sentence prefixes, plus each prefix extended by the
   // start of the next sentence cut at a clause boundary (comma / semicolon / colon), longest first.
   function brandedFitOptions(value) {
     const text = String(value || '').trim();
-    const sentences = (text.match(/[^.!?]+[.!?]+["')\]]*(?:\s+|$)|[^.!?]+$/g) || [text]).map((s) => s.trim()).filter(Boolean);
+    const sentences = splitSentences(text);
     const options = [{ words: countWords(text), text }];
     for (let k = 0; k < sentences.length; k += 1) {
       const prefix = sentences.slice(0, k).join(' ').trim();

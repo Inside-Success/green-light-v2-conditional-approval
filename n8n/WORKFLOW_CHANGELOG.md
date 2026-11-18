@@ -1,5 +1,32 @@
 # V2 Workflow Changelog
 
+## 2026-11-19 - Fix: shortening a Mansion/Island paragraph no longer loses text around a decimal
+
+The bug (found during the no-transcript work, see the entry below): when a Mansion of Money or Entrepreneurs Island paragraph is over 60 words it is shortened to whole sentences. The sentence splitter treated every full stop as a sentence end, so a full stop inside a number or a name ("$3.5 million", "U.S.", "acme.com") broke the paragraph there and the text in front of it was silently dropped. Reproduced on the live workflow just before the fix, through an AI change that made the Business Experience paragraph too long: the letter came back as "8 million the year before, representing roughly 25 percent growth in a single year. S. Navy service as a machinist's mate. ..." (the opening "$3.5 million ... up from $2." and "...your U." were gone). It affects editors and reps alike.
+
+Two nodes changed, same small change in each: `Build V2 Letter` (`n8n/nodes/build-v2-letter.js`) and `Apply V2 Refine Guardrails` (`n8n/nodes/apply-v2-refine-guardrails.js`). The one-line splitter inside `brandedFitOptions` is replaced by a `splitSentences` function:
+
+- A sentence ends at a full stop, `!` or `?` (plus a closing quote or bracket, curly quotes included) that is followed by a space or the end of the text. A full stop followed by a letter or digit is not an end.
+- A full stop right after an initialism ("U.S. market", "5 a.m. start") is not treated as an end either. This only applies to words the old splitter lost text on, so it cannot change any paragraph the old code handled correctly.
+- Every character of the paragraph lands in exactly one sentence, so shortening can only remove whole sentences from the end.
+
+Not changed: the 60-word and 200-word limits, which paragraphs get shortened, the clause-cut rule, the "was shortened" review note, every other node, all prompts, the other show types (the splitter is only used for Mansion and Island), the dashboards.
+
+How it was proven (offline harness, live node code vs new code, 7,057 checks, all passed):
+
+- All 228 real generations and all 8 real AI changes in the workflow's execution history (Normal 68, Island 92, Mansion 52, Reality 8, NLCEO 8): the new node output is identical to the old node output and to what production recorded, field for field.
+- 1,847 real paragraphs through both splitters: 1,832 split exactly as before; the other 15 are paragraphs where the old splitter lost text (real examples: "$5.7", "$3.5", "1.1", "U.S.", "D.C.", "G.I.", "BetterHealthNow.com", "MVP4.8"). In every case the new sentences join back to the full paragraph.
+- 4,000 random mixes of real sentences with decimals and initialisms inserted: identical split wherever the old code lost nothing (916), nothing lost anywhere.
+- Shortening forced on every real Mansion and Island letter (paragraphs doubled, or a sentence with decimals inserted first or in the middle), whole node: 138 runs with no risky full stop are identical to before; in the 294 runs where the old code lost text, all 294 old letters were damaged and every new paragraph is a clean cut of the original, within 60 words, with the review note.
+- The AI-change step the same way on every real Mansion and Island letter: 139 identical to before, 149 where the old code lost text (148 old letters damaged), every new paragraph a clean cut and the other three paragraphs untouched.
+- In the real n8n runtime on a private copy of the workflow (own unguessable webhook paths, created and deleted the same day): all five show types generated from real transcripts, and the forced decimal case through the AI-change step for Mansion and Island kept "$3.5 million ... up from $2.8 million" and "U.S. Navy" whole (163 to 37 words and 156 to 54 words).
+
+Deployed 2026-11-18T23:22:50Z (workflow `updatedAt`), 50 nodes, active, connections unchanged, only the code of the two nodes differs. After the deploy, on the live workflow: editor-style generations for all five shows succeeded, and the same forced decimal case returned intact paragraphs for Mansion and Island (169 to 37 words and 185 to 43 words). The next nine live executions were all successful.
+
+Known limit, unchanged from before: an abbreviation followed by a space ("Dr. Lee", "St. Louis", "No. 1") still counts as a sentence end, so a shortened paragraph can end on it. No text is lost in that case; changing it would have altered paragraphs the old code handled, so it was left alone.
+
+Backup before the change: `n8n/backups/TfpAYWYtDpOLWo2M-before-sentence-trim-fix-2026-11-18T23-22-47Z.json`.
+
 ## 2026-11-19 - Rep page: letters without a call transcript, and no cut on focus points
 
 Tyler's Loom to the reps (2026-11-18) says a letter can be generated before Zoom has a transcript by typing context into the Focus points box, and Rudy asked for a version that works without a recording from the qualifying survey plus the rep's bullets. Decisions with Syed (2026-11-19): same form, the Focus points box doubles as the context box, no length limit on it, a minimum amount of context, not available for two prospects on one call, a prominent review warning in Tyler's words, and "read between the lines but never invent facts".
@@ -28,7 +55,7 @@ How it was built and tested:
 Known limits, stated plainly:
 
 - The four-paragraph letters stay close to what was typed. The story letters (Feature Documentary, Next Level CEO) written from a two-sentence gist read well but contain narrative the AI inferred to connect the five acts (how one stage led to the next, a role the notes only imply). Rules reduced this; they did not remove it. That is what the review warning is for.
-- Found while testing, not changed (it is in the shared builder and refine guardrail and affects editors too): when a Mansion or Island paragraph is trimmed to length, the sentence splitter treats the full stop in a number such as "$3.5 million" as a sentence end and drops the text before it. Seen once, after an AI change made a paragraph too long; 0 of 169 branded letters showed it at first generation. Fix proposed separately.
+- Found while testing, not changed (it is in the shared builder and refine guardrail and affects editors too): when a Mansion or Island paragraph is trimmed to length, the sentence splitter treats the full stop in a number such as "$3.5 million" as a sentence end and drops the text before it. Seen once, after an AI change made a paragraph too long; 0 of 169 branded letters showed it at first generation. Fix proposed separately. Fixed the same day, see the entry above.
 
 Deployed 2026-11-18T22:10:55Z (workflow `updatedAt`), 50 nodes, active, connections unchanged. After the deploy, on the live workflow: two editor-style generations (Island, Normal), one rep request with a transcript and two short points, and two no-transcript letters, all successful.
 
