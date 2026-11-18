@@ -8,6 +8,8 @@ try {
   const requestGuestName = String(body.guest_name || body.client_name || body.clientName || '').replace(/\s+/g, ' ').trim();
   let docTitle = String(body.doc_title || body.title || '').replace(/\s+/g, ' ').trim();
   const editorName = String(body.editor_name || body.editorName || 'Adedokun Adedoyin').replace(/\s+/g, ' ').trim() || 'Adedokun Adedoyin';
+  // Sent only by the rep self-serve page: saves under the Reps folder instead of an editor folder.
+  const folderGroup = String(body.folder_group || '').trim().toLowerCase() === 'reps' ? 'reps' : '';
 
   function hasPlaceholder(value) {
     return /\[[^\]]+\]/.test(String(value || '')) || /INSERT (THING|BOOK|LINK|MISSION|DATE)/i.test(String(value || ''));
@@ -235,7 +237,7 @@ try {
     return [{ json: { ok: false, validation_status: 'failed', error: `V2 save validation failed: ${errors.join(' ')}` } }];
   }
 
-  return [{ json: { ok: true, validation_status: 'passed', show_type: showType, guest_name: guestName, doc_title: docTitle, letter_text: letterText, preview: letterText, warnings: Array.isArray(body.warnings) ? body.warnings.filter(Boolean) : [], editor_name: editorName } }];
+  return [{ json: { ok: true, validation_status: 'passed', show_type: showType, guest_name: guestName, doc_title: docTitle, letter_text: letterText, preview: letterText, warnings: Array.isArray(body.warnings) ? body.warnings.filter(Boolean) : [], editor_name: editorName, folder_group: folderGroup } }];
 } catch (error) {
   return [{ json: { ok: false, validation_status: 'failed', error: error.message || 'V2 save validation failed.' } }];
 }

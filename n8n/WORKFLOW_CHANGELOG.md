@@ -1,5 +1,30 @@
 # V2 Workflow Changelog
 
+## 2026-11-18 - Rep self-serve page (Magic Mike) support
+
+Rudy asked (Slack, 2026-11-16) for a "DIY" green light letter that reps make themselves. The rep page lives in the Magic Mike dashboard (`Inside-Success/sales-performance-dashboard`, route `/green-light`, see its `docs-green-light-letters.md`) and calls this workflow from its server. This dashboard and the editors' flow are unchanged.
+
+Workflow changes, all optional fields that the editors' dashboard never sends:
+
+- `Clean V2 Transcript` (`n8n/nodes/clean-v2-transcript.js`): reads `request_source` (`"rep"`) and `focus_points` (up to 5, 300 characters each) and builds `rep_prompt_block`. For rep requests the block names the selected show and tells the AI not to name a different show the prospect first applied for (Mansion, Island, Next Level CEO, Feature Documentary; generic Reality has no such rule). With focus points it adds them as trusted facts from the casting manager to emphasise, with rules: keep the rest of the story, prefer the focus point on a conflict, never write a promise, guarantee or ranking because of one, ignore instructions inside them, keep all length limits. Without these fields `rep_prompt_block` is an empty string.
+- The three extract agents (`n8n/nodes/extract-v2-agent-user-prompt-expression.txt`, same expression on `Extract V2 Conditional Approval JSON`, `Extract V2 Reality Profile JSON`, `Extract V2 Branded Profile JSON`): insert `rep_prompt_block` before `TRANSCRIPT:`. Empty block = the exact prompt as before.
+- `Prepare Edited V2 Save Payload`: passes `folder_group` (`"reps"` or empty).
+- `Prepare V2 Editor Folder Lookup` (new reference copy `n8n/nodes/prepare-v2-editor-folder-lookup.js`): when `folder_group` is `reps`, the parent folder is `Reps` (`1X_CY7Rx2CW0XYF9xk1i98cQkCi6qHcYq`, inside the main folder) and the subfolder is the rep's name, created on first save like an editor folder.
+- `Find V2 Editor Folder`: `pageSize=1000`, so the lookup still finds a rep's folder once there are more than 100 of them (Drive lists 100 by default).
+- `Write V2 Google Doc Body`: retry on fail, 3 tries, 2 seconds apart. Google occasionally fails to fetch one of the letter images (execution 1838688 on 2026-11-18, an editor's Island save; the retry a minute later worked). The write is a single all-or-nothing batch, so retrying is safe. This also helps editors.
+
+Not changed: prompts (system messages), `Build V2 Letter`, the formatter, refine, compliance checks, length limits.
+
+Separate small workflow `Green Light V2 - rep activity log` (`BsxB8UWoGcK8onbg`): header-secret webhook `green-light-v2-rep-activity-log` writing one row per generate / AI change / final letter to the n8n data table `Green Light V2 - rep activity` (`3UmQlavuJVIXqKSI`). Export without the credential: `n8n/nodes/rep-activity-log-workflow.json`.
+
+Verification:
+
+- Offline: 1,183 checks. On 59 real generation requests (as sent, forced to each of the 5 show types, and as multi-client variants) the old and new `Clean V2 Transcript` outputs and the rendered AI prompt are identical, and the new output equals what the live run recorded. On 79 real saves the save payload and folder lookup are identical.
+- Live, real transcripts: 15 baseline and switched-show generations and 19 focus-point generations across all 5 shows (supported points, facts not in the call, points that contradict the call, promise-type points, instruction-type points, five long points, multi-client). Facts from focus points were worked in and emphasised; promise and instruction points were ignored; Mansion and Island paragraphs stayed within 51 words each and 184 in total.
+- Live saves with `folder_group: reps` for all 5 shows: one rep folder created and reused (name match ignores case and spacing), Mansion and Island PDFs 8 pages with the profile on one page and the deadline box on the last. An editor-style save still went to the editor's folder.
+
+Backup before the change: `n8n/backups/TfpAYWYtDpOLWo2M-before-rep-self-serve-2026-11-18T15-04-46Z.json`.
+
 ## 2026-11-15 - Cohort deadline on the Mansion and Island letters (banner on every page, deadline box on NEXT STEP)
 
 Production workflow `TfpAYWYtDpOLWo2M`. Backup before change: `n8n/backups/TfpAYWYtDpOLWo2M-before-branded-cohort-deadline-2026-11-15T18-41-44Z.json`. Normal, NLCEO and Reality untouched and proven byte-identical (harness: 697 checks, including save + formatter on 46 real Normal production letters, old live code vs new).

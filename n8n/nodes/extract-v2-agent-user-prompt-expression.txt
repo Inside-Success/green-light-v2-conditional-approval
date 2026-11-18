@@ -2,9 +2,10 @@
   const clean = $('Clean V2 Transcript').first().json || {};
   const transcript = clean.cleaned_transcript || '';
   const overrideName = clean.manual_client_name || '';
+  const repBlock = clean.rep_prompt_block || '';
 
   if (!clean.multi_client) {
-    return 'OPTIONAL_CLIENT_NAME_OVERRIDE: ' + overrideName + '\n\nTRANSCRIPT:\n' + transcript;
+    return 'OPTIONAL_CLIENT_NAME_OVERRIDE: ' + overrideName + '\n\n' + repBlock + 'TRANSCRIPT:\n' + transcript;
   }
 
   const clientNames = Array.isArray(clean.client_names)
@@ -28,6 +29,6 @@ MULTI_CLIENT_SELECTION_RULES:
 - If the requested client's details cannot be separated confidently, still return the best safe JSON you can, but add a concise warning telling the editor to verify the client separation.
 - Keep the same JSON shape and same V2 content quality as a normal single-client transcript.
 
-TRANSCRIPT:
+${repBlock}TRANSCRIPT:
 ${transcript}`;
 })() }}
