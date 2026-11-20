@@ -174,24 +174,39 @@ if (showType === "mansion" || showType === "island") {
   const BRANDS = {
     mansion: {
       title: "MANSION OF MONEY TV", site: "www.mansionofmoneytv.com", assets: "mansion",
-      headFont: "Cinzel", bodyFont: "Open Sans", headColor: rgb("CE973D"), subColor: rgb("CE973D"),
-      subFont: "Open Sans", subSize: 13, subBold: true, titleSize: 26, subtitleColor: rgb("0A0A0A"), subtitleSize: 15,
-      headWeight: 700, nextStepColor: rgb("CE973D"), footerBold: false, footerColor: rgb("0A0A0A"),
-      headSizes: { "CONGRATULATIONS!": 18, "YOUR COMPETITIVE PROFILE": 24, "DONE-FOR-YOU CONTENT PRODUCTION": 20, "MEDIA & CONTENT OPPORTUNITIES": 21, "MEDIA PACK": 21, "OUR UNIQUE CO-PRODUCTION MODEL": 20, "NEXT STEP ➡️": 20 },
-      images: { fame: [1400, 954], mediaPack: [2105, 2092], coprod: [1500, 1261] },
+      // Green design (Boris's doc of 2026-11-20, replacing the gold one). Montenegrin Gothic One ships one
+      // weight and the doc uses it unbolded. The media pack tiles, the co-production chart and the linked
+      // media kit are unchanged in that doc, so they stay as they were.
+      headFont: "Montenegrin Gothic One", bodyFont: "Open Sans", headColor: rgb("18A00A"), subColor: rgb("000000"),
+      subFont: "Montenegrin Gothic One", subSize: 13, subBold: false, titleSize: 30, subtitleColor: rgb("0A0A0A"), subtitleSize: 15,
+      headWeight: 400, headBold: false, nextStepColor: rgb("18A00A"), footerBold: false, footerColor: rgb("0A0A0A"),
+      footerText: "www.MansionOfMoneyTV.com", footerSize: 11, nextStepHeading: "NEXT STEP",
+      // The larger title and CONGRATULATIONS! take about 10pt more of page 1 than the gold design did; the gap above
+      // CONGRATULATIONS! gives it back (and is closer to the doc), so a long Cast Name that wraps still fits on page 1.
+      congratsSpaceAbove: 6,
+      headSizes: { "CONGRATULATIONS!": 22, "YOUR COMPETITIVE PROFILE": 22, "DONE-FOR-YOU CONTENT PRODUCTION": 22, "MEDIA & CONTENT OPPORTUNITIES": 21, "MEDIA PACK": 22, "OUR UNIQUE CO-PRODUCTION MODEL": 22, "NEXT STEP": 22 },
+      images: { fame: [1558, 1062], mediaPack: [2105, 2092], coprod: [1500, 1261] },
+      files: { header: "header-green.jpg", banner: "deadline-banner-green.png", fame: "content-production-green.png" },
       mediaKitLink: "View the Mansion of Money Media Pack",
-      deadlineFill: rgb("000000"), deadlineBorder: rgb("CE973D"),
+      // In the doc only the show's name is green and underlined; "View the" in front of it is dark grey.
+      linkColor: rgb("18A00A"), linkLead: "View the ", linkLeadColor: rgb("434343"),
+      deadlineFill: rgb("FFFFFF"), deadlineBorder: rgb("18A00A"),
+      deadlineHeadFont: "Montenegrin Gothic One", deadlineHeadWeight: 400, deadlineHeadColor: rgb("18A00A"), deadlineBodyColor: rgb("000000"),
     },
     island: {
       title: "ENTREPRENEURS ISLAND TV", site: "www.entrepreneursislandtv.com", assets: "island",
       headFont: "Fjalla One", bodyFont: "Plus Jakarta Sans", headColor: rgb("015FBC"), subColor: rgb("068EB0"),
       subFont: "Fjalla One", subSize: 16, subBold: false, titleSize: 32, subtitleColor: rgb("068EB0"), subtitleSize: 14,
       // Fjalla One ships one weight; bold is synthesised, exactly as in Boris's doc.
-      headWeight: 400, nextStepColor: rgb("068EB0"), footerBold: true, footerColor: rgb("068EB0"),
+      headWeight: 400, headBold: true, nextStepColor: rgb("068EB0"), footerBold: true, footerColor: rgb("068EB0"),
+      footerText: "www.entrepreneursislandtv.com", footerSize: 10, nextStepHeading: "NEXT STEP ➡️", congratsSpaceAbove: 16,
       headSizes: { "CONGRATULATIONS!": 21, "YOUR COMPETITIVE PROFILE": 24, "DONE-FOR-YOU CONTENT PRODUCTION": 24, "MEDIA & CONTENT OPPORTUNITIES": 24, "MEDIA PACK": 25, "OUR UNIQUE CO-PRODUCTION MODEL": 24, "NEXT STEP ➡️": 20 },
       images: { fame: [1400, 920], mediaPack: [2105, 2092], coprod: [1500, 1261] },
+      files: { header: "header.jpg", banner: "deadline-banner.png", fame: "content-production.jpg" },
       mediaKitLink: "View the Entrepreneurs Island Media Pack",
+      linkColor: rgb("068EB0"),
       deadlineFill: rgb("015FBC"), deadlineBorder: rgb("F1C232"),
+      deadlineHeadFont: "Plus Jakarta Sans", deadlineHeadWeight: 700, deadlineHeadColor: rgb("F1C232"), deadlineBodyColor: rgb("FFFFFF"),
     },
   };
   const brand = BRANDS[showType];
@@ -202,16 +217,19 @@ if (showType === "mansion" || showType === "island") {
     return { uri: `${assetBase}/${file}`, width: widthPt, height: Math.round((widthPt * h) / w) };
   };
   const IMAGES = {
-    fame: imageSpec("fame", "content-production.jpg", 580),
+    fame: imageSpec("fame", brand.files.fame, 580),
     mediaPack: imageSpec("mediaPack", "media-pack.jpg", 530), // 14-tile grid, 3 x 180pt tiles in the design
     coprod: imageSpec("coprod", "co-production-model.png", 570), // design runs it edge to edge; 570 leaves about 16pt under it on its page for both brands (was 550 while the page-break character still held a full line there)
   };
+  // The Island doc has an arrow after NEXT STEP, the Mansion doc does not. The letter text carries the arrow
+  // for both shows, so it is the heading written into the document that differs.
+  const NEXT_STEP = brand.nextStepHeading;
   const MAJOR = new Set([
     "CONGRATULATIONS!", "YOUR COMPETITIVE PROFILE", "DONE-FOR-YOU CONTENT PRODUCTION", "MEDIA & CONTENT OPPORTUNITIES",
-    "MEDIA PACK", "OUR UNIQUE CO-PRODUCTION MODEL", "NEXT STEP ➡️",
+    "MEDIA PACK", "OUR UNIQUE CO-PRODUCTION MODEL", NEXT_STEP,
   ]);
   const PAGE_BREAK_BEFORE = new Set([
-    "MEDIA & CONTENT OPPORTUNITIES", "MEDIA PACK", "OUR UNIQUE CO-PRODUCTION MODEL", "NEXT STEP ➡️",
+    "MEDIA & CONTENT OPPORTUNITIES", "MEDIA PACK", "OUR UNIQUE CO-PRODUCTION MODEL", NEXT_STEP,
   ]);
   const CENTERED = new Set(["MEDIA PACK", "OUR UNIQUE CO-PRODUCTION MODEL"]);
   const SUB = new Set(["BUSINESS EXPERIENCE", "COMPETITIVE EDGE", "PERSONALITY", "THE WILDCARD"]);
@@ -248,7 +266,7 @@ if (showType === "mansion" || showType === "island") {
   while (brandedLines.length && brandedLines[brandedLines.length - 1] === "") brandedLines.pop();
   const brandedEntries = [];
   for (const rawLine of brandedLines) {
-    const entryText = rawLine === "CONGRATULATIONS" ? "CONGRATULATIONS!" : rawLine === "NEXT STEP" ? "NEXT STEP ➡️" : rawLine;
+    const entryText = rawLine === "CONGRATULATIONS" ? "CONGRATULATIONS!" : rawLine === "NEXT STEP" || rawLine === "NEXT STEP ➡️" ? NEXT_STEP : rawLine;
     brandedEntries.push({ text: entryText, kind: "text" });
     const imageKey = IMAGE_AFTER[entryText];
     if (imageKey) brandedEntries.push({ text: "", kind: "image", image: imageKey });
@@ -288,8 +306,8 @@ if (showType === "mansion" || showType === "island") {
       fields: "pageSize,marginTop,marginBottom,marginLeft,marginRight,marginHeader,marginFooter",
     },
   });
-  const headerUri = `${assetBase}/header.jpg`;
-  const bannerUri = `${assetBase}/deadline-banner.png`;
+  const headerUri = `${assetBase}/${brand.files.header}`;
+  const bannerUri = `${assetBase}/${brand.files.banner}`;
   if (headerId) {
     brandedRequests.push({
       insertInlineImage: {
@@ -315,12 +333,12 @@ if (showType === "mansion" || showType === "island") {
     });
   }
   if (footerId) {
-    const footerText = `${brand.site}\n`;
+    const footerText = `${brand.footerText}\n`;
     brandedRequests.push({ insertText: { location: { segmentId: footerId, index: 0 }, text: footerText } });
     brandedRequests.push({
       updateTextStyle: {
         range: { segmentId: footerId, startIndex: 0, endIndex: footerText.length },
-        textStyle: { bold: brand.footerBold, fontSize: { magnitude: 10, unit: "PT" }, weightedFontFamily: { fontFamily: brand.bodyFont, weight: brand.footerBold ? 700 : 400 }, foregroundColor: brand.footerColor },
+        textStyle: { bold: brand.footerBold, fontSize: { magnitude: brand.footerSize, unit: "PT" }, weightedFontFamily: { fontFamily: brand.bodyFont, weight: brand.footerBold ? 700 : 400 }, foregroundColor: brand.footerColor },
         fields: "bold,fontSize,weightedFontFamily,foregroundColor",
       },
     });
@@ -341,7 +359,7 @@ if (showType === "mansion" || showType === "island") {
   const BRAND_INDENT = { indentStart: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" }, indentFirstLine: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" }, indentEnd: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" } };
   const BRAND_BULLET = { indentStart: { magnitude: BULLET_INDENT_START, unit: "PT" }, indentFirstLine: { magnitude: BULLET_INDENT_FIRST, unit: "PT" }, indentEnd: { magnitude: MARGIN_LEFT_RIGHT, unit: "PT" } };
   const pt = (n) => ({ magnitude: n, unit: "PT" });
-  const styleHead = (s, e, size, color) => styleText(s, e, { bold: true, fontSize: pt(size), weightedFontFamily: { fontFamily: brand.headFont, weight: brand.headWeight }, foregroundColor: color }, "bold,fontSize,weightedFontFamily,foregroundColor");
+  const styleHead = (s, e, size, color) => styleText(s, e, { bold: brand.headBold, fontSize: pt(size), weightedFontFamily: { fontFamily: brand.headFont, weight: brand.headWeight }, foregroundColor: color }, "bold,fontSize,weightedFontFamily,foregroundColor");
 
   const bt1Start = 1, bt1End = bt1Start + brandedLine1.length + 1;
   const bt2Start = bt1End, bt2End = bt2Start + brandedLine2.length + 1;
@@ -383,7 +401,7 @@ if (showType === "mansion" || showType === "island") {
       const isHead = entry.kind === "deadlineHead", isBody = entry.kind === "deadlineBody";
       const boxFont = "Plus Jakarta Sans";
       if (entry.kind === "deadlineGap") styleText(cursor, bParaEnd, { bold: false, fontSize: pt(9), weightedFontFamily: { fontFamily: boxFont, weight: 400 } }, "bold,fontSize,weightedFontFamily");
-      else styleFont(cursor, cursor + bLen, boxFont, isHead ? 14 : 12, isHead ? 700 : 400, { foregroundColor: isHead ? rgb("F1C232") : rgb("FFFFFF") });
+      else styleFont(cursor, cursor + bLen, isHead ? brand.deadlineHeadFont : boxFont, isHead ? 14 : 12, isHead ? brand.deadlineHeadWeight : 400, { foregroundColor: isHead ? brand.deadlineHeadColor : brand.deadlineBodyColor });
       const boxEdge = { color: brand.deadlineBorder, width: pt(3), padding: pt(14.4), dashStyle: "SOLID" };
       const boxSide = { ...boxEdge, padding: pt(12.4) }; // puts the outer edge at 71pt / 503pt, where the design's table border sits
       const boxNoEdge = { color: brand.deadlineBorder, width: pt(0), padding: pt(0), dashStyle: "SOLID" };
@@ -397,9 +415,9 @@ if (showType === "mansion" || showType === "island") {
       // blank spacer bLine
     } else if (MAJOR.has(bLine)) {
       const centred = CENTERED.has(bLine);
-      styleHead(cursor, cursor + bLen, brand.headSizes[bLine] || 22, bLine === "NEXT STEP ➡️" ? brand.nextStepColor : brand.headColor);
+      styleHead(cursor, cursor + bLen, brand.headSizes[bLine] || 22, bLine === NEXT_STEP ? brand.nextStepColor : brand.headColor);
       // A page-break heading starts on the previous page (the break is its first character), so its space above would be spent there.
-      stylePara(cursor, bParaEnd, { alignment: centred ? "CENTER" : "START", ...BRAND_INDENT, spaceAbove: pt(centred || PAGE_BREAK_BEFORE.has(bLine) ? 0 : bLine === "CONGRATULATIONS!" ? 16 : 35), spaceBelow: pt(8), keepWithNext: true }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
+      stylePara(cursor, bParaEnd, { alignment: centred ? "CENTER" : "START", ...BRAND_INDENT, spaceAbove: pt(centred || PAGE_BREAK_BEFORE.has(bLine) ? 0 : bLine === "CONGRATULATIONS!" ? brand.congratsSpaceAbove : 35), spaceBelow: pt(8), keepWithNext: true }, "alignment,indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow,keepWithNext");
       if (PAGE_BREAK_BEFORE.has(bLine)) brandedInserts.push({ index: cursor, kind: "pageBreak" });
     } else if (SUB.has(bLine)) {
       styleFont(cursor, cursor + bLen, brand.subFont, brand.subSize, brand.subBold ? 700 : 400, { foregroundColor: brand.subColor });
@@ -414,7 +432,8 @@ if (showType === "mansion" || showType === "island") {
       // "🔗 View the <Show> Media Pack": the link text opens the show's media kit hosted next to the other assets.
       const linkStart = cursor + bLine.indexOf(brand.mediaKitLink);
       styleFont(cursor, cursor + bLen, brand.bodyFont, 13, 400);
-      styleText(linkStart, cursor + bLen, { link: { url: `${assetBase}/media-kit.jpg` }, underline: true, bold: true, foregroundColor: brand.subColor }, "link,underline,bold,foregroundColor");
+      styleText(linkStart, cursor + bLen, { link: { url: `${assetBase}/media-kit.jpg` }, underline: true, bold: true, foregroundColor: brand.linkColor }, "link,underline,bold,foregroundColor");
+      if (brand.linkLead && brand.mediaKitLink.startsWith(brand.linkLead)) styleText(linkStart, linkStart + brand.linkLead.length, { underline: false, foregroundColor: brand.linkLeadColor }, "underline,foregroundColor");
       stylePara(cursor, bParaEnd, { ...BRAND_INDENT, spaceAbove: pt(6), spaceBelow: pt(6) }, "indentStart,indentFirstLine,indentEnd,spaceAbove,spaceBelow");
     } else if (/^Before your second call/.test(bLine) || /^(It has the potential to become:|These may include:|During your next call we will discuss:)$/.test(bLine)) {
       styleFont(cursor, cursor + bLen, brand.bodyFont, FONT_BODY_SIZE, 700);

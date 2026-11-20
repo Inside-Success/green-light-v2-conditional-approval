@@ -1,5 +1,39 @@
 # V2 Workflow Changelog
 
+## 2026-11-21 - Mansion of Money letters: new green design
+
+Source: Boris Edrovski in Slack (2026-11-20), "We have new updated design for Mansion of Money", design doc `1zvWJK7J7S0LieS1YNp7bXne2JLWYBRAAyogM28uv_5k` (the older design doc `1w7HSMsVKYPPI2sTtHFsF0ikeONnAWrx6dIbHvZ8JNeg` now holds the same design). The wording of the doc is identical to before; only the look changed, from gold to green. Syed's instruction: copy the doc exactly, nothing different.
+
+One node changed, `Prepare V2 Google Doc Body` (`n8n/nodes/prepare-v2-google-doc-body.js`, and its copy `n8n/v2-designed-doc-formatter.js`), Mansion settings only. This node is the only place that holds the look of a letter: the editors' dashboard and the rep page in Magic Mike both save through it and hold no colours, fonts or images themselves, so both get the new design from this one change.
+
+What a Mansion letter looks like now:
+
+- Deadline banner on every page: green (`mansion/deadline-banner-green.png`). Header picture: green logo (`mansion/header-green.jpg`). Content production graphic: green labels (`mansion/content-production-green.png`, 1558x1062). The three images come from the design doc and were added under new names, so the gold files stay in place for a rollback.
+- Title and section headings: Montenegrin Gothic One, not bold, green `#18A00A` (title 30pt; headings 22pt, MEDIA & CONTENT OPPORTUNITIES 21pt). Was Cinzel bold, gold `#CE973D`.
+- Business Experience, Competitive Edge, Personality, The Wildcard: Montenegrin Gothic One 13pt, black. Was Open Sans bold, gold. In the doc three of the four are regular and THE WILDCARD is bold; all four are regular here so they match each other.
+- Deadline box on the last page: white with a green border, heading in Montenegrin Gothic One green, body black. Was black with a gold border, yellow heading, white body.
+- Media pack link: "View the" dark grey `#434343` and not underlined, "Mansion of Money Media Pack" green and underlined. Was all gold and underlined. The link target is unchanged.
+- Footer: "www.MansionOfMoneyTV.com" at 11pt. Was "www.mansionofmoneytv.com" at 10pt.
+- "NEXT STEP" heading has no arrow (the Island doc still has one). The letter text shown in the dashboards still carries the arrow for both shows; only the heading written into a Mansion document differs.
+- Space above CONGRATULATIONS! is 6pt (was 16pt), which gives page 1 back the room the larger title and heading take and is closer to the doc.
+
+Not changed, because the design doc did not change them: the 14 media pack tiles, the co-production chart, the linked media kit picture (the doc's Dropbox file is byte-identical to the hosted `mansion/media-kit.jpg`), the body font and sizes, the page layout rules and the wording. Not touched at all: Entrepreneurs Island, Normal, Next Level CEO, Reality, the other 49 nodes, every prompt, both dashboards.
+
+Verification:
+
+- Offline, the live node code against the new code on every save still in the execution history (130 real saves): the harness reproduces the recorded production output for all 130; Island (52), Normal (37) and Next Level CEO (8) are byte-identical with the new code, as is a Reality run; the 33 Mansion saves keep the same requests in the same order and differ only in styling values, the three image files, the missing arrow and the one added "View the" request.
+- The first offline run caught a mistake before anything was deployed: the letter text arrives as "NEXT STEP ➡️", not "NEXT STEP", so the first version would have lost the heading style and page break on Mansion. Both forms are now mapped.
+- In the real n8n runtime on a private copy of the workflow (own unguessable webhook paths, created and deleted the same day): 12 real Mansion letters of 14 to 19 profile lines saved and exported as PDF. All 12 keep exactly the page structure of the same letter in the gold design (8 pages, every section on the same page). The Competitive Profile page still holds 17 lines of profile text; the two 19-line letters push the closing sentence to the next page exactly as they did before. Page 1 has the same spare room as before (text ends at 725.1pt, was 725.6pt; the page ends at 750pt).
+- Edge cases, new design next to the gold one: a 70-character Cast Name that wraps onto two lines still fits on page 1 in both; a very short profile (7 lines) flows the same way in both.
+- Island, Normal and Next Level CEO letters saved through the private copy are pixel-identical to the same letters made by the live code (apart from the test name).
+- Side by side with the design doc, page by page.
+
+Deployed 2026-11-20T23:47:17Z (workflow `updatedAt`), 50 nodes, active, connections unchanged, only this node's code differs. After the deploy, on the live workflow: a Mansion save is pixel-identical to the one tested on the private copy; an Island and a Normal save are unchanged (Island: 50 of about a million pixel values on the media pack page differ by at most 4 of 255, which is Google re-encoding the same picture; the requests are byte-identical); a rep-style save (Reps folder) gets the green design. All test documents were moved to the bin.
+
+Letters made before the deploy stay gold. A letter generated before the deploy and saved after it gets the green design, because the look is applied at save time.
+
+Rollback: restore `n8n/backups/TfpAYWYtDpOLWo2M-before-mansion-green-design-2026-11-20T23-47-15Z.json` (or put the previous code of this one node back). The gold images are still hosted.
+
 ## 2026-11-19 - Fix: shortening a Mansion/Island paragraph no longer loses text around a decimal
 
 The bug (found during the no-transcript work, see the entry below): when a Mansion of Money or Entrepreneurs Island paragraph is over 60 words it is shortened to whole sentences. The sentence splitter treated every full stop as a sentence end, so a full stop inside a number or a name ("$3.5 million", "U.S.", "acme.com") broke the paragraph there and the text in front of it was silently dropped. Reproduced on the live workflow just before the fix, through an AI change that made the Business Experience paragraph too long: the letter came back as "8 million the year before, representing roughly 25 percent growth in a single year. S. Navy service as a machinist's mate. ..." (the opening "$3.5 million ... up from $2." and "...your U." were gone). It affects editors and reps alike.
